@@ -12,9 +12,11 @@ namespace GraduationProject.Managers
         public static APIManager Instance { get; private set; }
 
         [Header("API Settings")]
-        [SerializeField] private string _baseUrl = "https://api.senin-backend.com/api"; 
-        
-        // Token'ı private tutuyoruz, dışarıdan kimse değiştiremez.
+        // ÖNEMLİ: Buraya Render'daki .NET API base adresini yaz.
+        // Örnek: "https://dktapi.onrender.com"
+        [SerializeField] private string _baseUrl = "https://backendapi-8nfn.onrender.com";
+
+        // Terapist tarafı için kullandığın JWT token (Unity'de lazım olursa)
         private string _jwtToken;
 
         private void Awake()
@@ -30,27 +32,82 @@ namespace GraduationProject.Managers
             }
         }
 
-        public async Task<User> Login(string username, string password)
+        // ─────────────────────────────────────────────────────
+        //  PLAYER LOGIN  (Unity'den çocuk girişi)
+        //  POST /api/player/auth/login
+        // ─────────────────────────────────────────────────────
+        public async Task<PlayerLoginResponseDto> PlayerLoginAsync(string nickname, string password)
         {
-            string url = $"{_baseUrl}/auth/login";
-            var requestData = new LoginRequestDTO { Username = username, Password = password };
+            string url = $"{_baseUrl}/api/player/auth/login";
+
+            var requestData = new PlayerLoginRequestDto
+            {
+                Nickname = nickname,
+                Password = password
+            };
+
             string jsonBody = JsonConvert.SerializeObject(requestData);
 
-            // POST İsteği at
             string response = await SendPostRequest(url, jsonBody, requiresAuth: false);
 
-            if (!string.IsNullOrEmpty(response))
+            if (string.IsNullOrEmpty(response))
             {
-                // Gelen JSON'ı User objesine çevir
-                User user = JsonConvert.DeserializeObject<User>(response);
-                _jwtToken = user.Token; // Token'ı sakla
-                Debug.Log($"[APIManager] Login Başarılı: {user.Username}");
-                return user;
+                Debug.LogError("[APIManager] PlayerLogin başarısız, boş response.");
+                return null;
             }
-            return null;
+
+            try
+            {
+                var player = JsonConvert.DeserializeObject<PlayerLoginResponseDto>(response);
+                if (player == null)
+                {
+                    Debug.LogError("[APIManager] PlayerLogin: response deserialize edilemedi.");
+                    return null;
+                }
+
+                Debug.Log($"[APIManager] Player login başarılı: {player.Nickname} (Id={player.PlayerId})");
+                return player;
+            }
+            catch (System.SystemException ex)
+            {
+                Debug.LogError("[APIManager] PlayerLogin parse hatası: " + ex);
+                return null;
+            }
         }
 
-        // --- Helper Methods ---
+        // ─────────────────────────────────────────────────────
+        // (İstersen TERAPİST LOGIN'i de burada bırakabilirsin)
+        //  POST /api/auth/login
+        // ─────────────────────────────────────────────────────
+        public async Task<User> TherapistLoginAsync(string email, string password)
+        {
+            string url = $"{_baseUrl}/api/auth/login";
+
+            var requestData = new LoginRequestDTO
+            {
+                Username = email,   // backend'de Email kullanıyorsan ona göre güncelle
+                Password = password
+            };
+
+            string jsonBody = JsonConvert.SerializeObject(requestData);
+
+            string response = await SendPostRequest(url, jsonBody, requiresAuth: false);
+
+            if (string.IsNullOrEmpty(response))
+                return null;
+
+            var user = JsonConvert.DeserializeObject<User>(response);
+            if (user != null && !string.IsNullOrEmpty(user.Token))
+            {
+                _jwtToken = user.Token;
+            }
+
+            return user;
+        }
+
+        // ─────────────────────────────────────────────────────
+        //  GENERAL HELPERS
+        // ─────────────────────────────────────────────────────
 
         private async Task<string> SendPostRequest(string url, string jsonBody, bool requiresAuth)
         {
@@ -69,13 +126,46 @@ namespace GraduationProject.Managers
                 var operation = request.SendWebRequest();
                 while (!operation.isDone) await Task.Yield();
 
+#if UNITY_2020_1_OR_NEWER
                 if (request.result == UnityWebRequest.Result.Success)
+#else
+                if (!request.isNetworkError && !request.isHttpError)
+#endif
                 {
                     return request.downloadHandler.text;
                 }
                 else
                 {
-                    Debug.LogError($"[API Error] {request.error} : {request.downloadHandler.text}");
+                    Debug.LogError($"[API Error] {request.responseCode} - {request.error} : {request.downloadHandler.text}");
+                    return null;
+                }
+            }
+        }
+
+        // GET istekleri için de lazım olacak (ör: aktif görev listesi)
+        public async Task<string> SendGetRequest(string url, bool requiresAuth)
+        {
+            using (UnityWebRequest request = UnityWebRequest.Get(url))
+            {
+                if (requiresAuth && !string.IsNullOrEmpty(_jwtToken))
+                {
+                    request.SetRequestHeader("Authorization", $"Bearer {_jwtToken}");
+                }
+
+                var operation = request.SendWebRequest();
+                while (!operation.isDone) await Task.Yield();
+
+#if UNITY_2020_1_OR_NEWER
+                if (request.result == UnityWebRequest.Result.Success)
+#else
+                if (!request.isNetworkError && !request.isHttpError)
+#endif
+                {
+                    return request.downloadHandler.text;
+                }
+                else
+                {
+                    Debug.LogError($"[API Error] {request.responseCode} - {request.error} : {request.downloadHandler.text}");
                     return null;
                 }
             }
