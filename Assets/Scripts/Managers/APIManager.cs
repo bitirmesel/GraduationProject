@@ -1,3 +1,4 @@
+using System.Collections.Generic; // List<> kullanmak için bunu ekledik
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -7,29 +8,18 @@ using GraduationProject.Models;
 
 namespace GraduationProject.Managers
 {
-    public class APIManager : MonoBehaviour
+public class APIManager : MonoBehaviour
     {
         public static APIManager Instance { get; private set; }
 
         [Header("API Settings")]
-        // ÖNEMLİ: Buraya Render'daki .NET API base adresini yaz.
-        // Örnek: "https://dktapi.onrender.com"
         [SerializeField] private string _baseUrl = "https://backendapi-8nfn.onrender.com";
-
-        // Terapist tarafı için kullandığın JWT token (Unity'de lazım olursa)
         private string _jwtToken;
 
         private void Awake()
         {
-            if (Instance == null)
-            {
-                Instance = this;
-                DontDestroyOnLoad(gameObject);
-            }
-            else
-            {
-                Destroy(gameObject);
-            }
+            if (Instance == null) { Instance = this; DontDestroyOnLoad(gameObject); }
+            else { Destroy(gameObject); }
         }
 
         // ─────────────────────────────────────────────────────
@@ -68,11 +58,45 @@ namespace GraduationProject.Managers
                 Debug.Log($"[APIManager] Player login başarılı: {player.Nickname} (Id={player.PlayerId})");
                 return player;
             }
-            catch (System.SystemException ex)
+            catch (System.Exception ex)
             {
                 Debug.LogError("[APIManager] PlayerLogin parse hatası: " + ex);
                 return null;
             }
+        }
+
+        // ─────────────────────────────────────────────────────
+        //  GET TASKS (Harita için Mock Data)
+        //  Normalde: GET /api/player/{id}/tasks
+        // ─────────────────────────────────────────────────────
+// APIManager.cs içindeki GetTasksAsync fonksiyonunu bununla değiştir:
+
+public async Task<List<TaskItem>> GetTasksAsync(long playerId)
+        {
+            await Task.Delay(100); 
+
+            List<TaskItem> mockTasks = new List<TaskItem>();
+            
+            // TÜRKÇE ALFABE - Sırayla bunları butonlara yazacak
+            string alfabe = "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ"; 
+
+            for (int i = 0; i < alfabe.Length; i++)
+            {
+                // Eğer harf sayısı nokta sayısını geçerse döngüyü durdur (Hata almamak için)
+                // (Bu kontrolü SelectionController'da da yapıyoruz ama burada da olsun)
+                 if (i >= alfabe.Length) break;
+
+                mockTasks.Add(new TaskItem
+                {
+                    TaskId = i + 1,
+                    LetterCode = alfabe[i].ToString(), // Sıradaki harfi al
+                    // İlk 3 bitmiş (Yeşil), 4. sırada (Sarı), gerisi kilitli (Gri)
+                    Status = (i < 3) ? "Completed" : (i == 3 ? "Assigned" : "Locked"),
+                    GameType = 1
+                });
+            }
+
+            return mockTasks;
         }
 
         // ─────────────────────────────────────────────────────
