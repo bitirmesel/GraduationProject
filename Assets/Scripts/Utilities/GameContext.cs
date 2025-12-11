@@ -6,4 +6,5 @@ namespace GraduationProject.Utilities
         public static string Nickname;
         public static int TotalScore;
     }
+    
 }
