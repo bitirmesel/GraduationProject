@@ -1,22 +1,19 @@
-using System.Collections.Generic; // List<> kullanmak için bunu ekledik
+using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
 using Newtonsoft.Json;
-using GraduationProject.Models;
+using GraduationProject.Models; // GameAssetConfig burada olmalı
 
 namespace GraduationProject.Managers
 {
-public class APIManager : MonoBehaviour
+    public class APIManager : MonoBehaviour
     {
         public static APIManager Instance { get; private set; }
 
         [Header("API Settings")]
-        // Base URL: sadece domain + port
-        // Örn: https://backendapi-8nfn.onrender.com
         [SerializeField] private string _baseUrl = "https://backendapi-8nfn.onrender.com";
-
 
         private string _jwtToken;
 
@@ -65,42 +62,29 @@ public class APIManager : MonoBehaviour
             }
         }
 
-
         // ─────────────────────────────────────────────────────
         //  GET TASKS (Harita için Mock Data)
-        //  Normalde: GET /api/player/{id}/tasks
         // ─────────────────────────────────────────────────────
-// APIManager.cs içindeki GetTasksAsync fonksiyonunu bununla değiştir:
-
-// APIManager.cs içindeki GetTasksAsync fonksiyonu:
-
-public async Task<List<TaskItem>> GetTasksAsync(long playerId)
-{
-    await Task.Delay(100); 
-
-    List<TaskItem> mockTasks = new List<TaskItem>();
-    
-    // Sadece Sessiz Harfler
-    string[] sessizHarfler = { "B", "C", "Ç", "D", "F", "G", "Ğ", "H", "J", "K", "L", "M", "N", "P", "R", "S", "Ş", "T", "V", "Y", "Z" };
-
-    for (int i = 0; i < sessizHarfler.Length; i++)
-    {
-        mockTasks.Add(new TaskItem
+        public async Task<List<TaskItem>> GetTasksAsync(long playerId)
         {
-            TaskId = i + 1, // ID: 1, 2, 3... diye gidecek.
-            LetterCode = sessizHarfler[i], 
-            
-            // Örnek Durum: İlk 2'si bitmiş, 3.sü oynanacak
-            Status = (i < 2) ? "Completed" : (i == 2 ? "Assigned" : "Locked"),
-            
-            GameType = 1
-        });
-    }
+            await Task.Delay(100); 
 
-    return mockTasks;
-}
+            List<TaskItem> mockTasks = new List<TaskItem>();
+            string[] sessizHarfler = { "B", "C", "Ç", "D", "F", "G", "Ğ", "H", "J", "K", "L", "M", "N", "P", "R", "S", "Ş", "T", "V", "Y", "Z" };
 
-  
+            for (int i = 0; i < sessizHarfler.Length; i++)
+            {
+                mockTasks.Add(new TaskItem
+                {
+                    TaskId = i + 1,
+                    LetterCode = sessizHarfler[i],
+                    Status = (i < 2) ? "Completed" : (i == 2 ? "Assigned" : "Locked"),
+                    GameType = 1
+                });
+            }
+            return mockTasks;
+        }
+
         public async Task<User> TherapistLoginAsync(string email, string password)
         {
             string url = $"{_baseUrl}/api/auth/login";
@@ -124,6 +108,47 @@ public async Task<List<TaskItem>> GetTasksAsync(long playerId)
             }
 
             return user;
+        }
+
+        public async Task<List<PlayerTaskDto>> GetAllTasksForPlayer(long playerId)
+        {
+            string url = $"{_baseUrl}/api/players/{playerId}/tasks";
+            string json = await SendGetRequest(url, requiresAuth: false);
+
+            if (string.IsNullOrEmpty(json))
+                return null;
+
+            return JsonConvert.DeserializeObject<List<PlayerTaskDto>>(json);
+        }
+
+        // ---------------------------------------------------------
+        //  [NEW] ASSET CONFIGURATION (Resim Listesini Çeken Yer)
+        // ---------------------------------------------------------
+        public async Task<GameAssetConfig> GetGameConfigAsync(long gameId, long letterId)
+        {
+            // Backend'de tanımladığımız endpoint: api/gameconfig/{gameId}/{letterId}
+            string url = $"{_baseUrl}/api/gameconfig/{gameId}/{letterId}";
+
+            // Şu anlık requiresAuth: false yaptık. İlerde token gerekirse true yaparsın.
+            string json = await SendGetRequest(url, requiresAuth: false);
+
+            if (string.IsNullOrEmpty(json))
+            {
+                Debug.LogError($"[APIManager] GameConfig alınamadı. URL: {url}");
+                return null;
+            }
+
+            try
+            {
+                // JSON'ı bizim oluşturduğumuz GameAssetConfig modeline çevir
+                var config = JsonConvert.DeserializeObject<GameAssetConfig>(json);
+                return config;
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError("[APIManager] GameConfig parse hatası: " + ex.Message);
+                return null;
+            }
         }
 
         // -------------------- HELPERS --------------------
@@ -186,20 +211,6 @@ public async Task<List<TaskItem>> GetTasksAsync(long playerId)
                     return null;
                 }
             }
-        }
-
-        // ------------ PLAYER İÇİN TÜM GÖREVLER ------------
-        public async Task<List<PlayerTaskDto>> GetAllTasksForPlayer(long playerId)
-        {
-            // SUNUCU TARAFI: /api/players/{playerId}/tasks
-            string url = $"{_baseUrl}/api/players/{playerId}/tasks";
-
-            string json = await SendGetRequest(url, requiresAuth: false);
-
-            if (string.IsNullOrEmpty(json))
-                return null;
-
-            return JsonConvert.DeserializeObject<List<PlayerTaskDto>>(json);
         }
     }
 }
