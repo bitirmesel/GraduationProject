@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI; // ScrollRect ve Image için gerekli
-using System.Linq;    // Listede arama yapmak için gerekli
-using TMPro;          // TextMeshPro için gerekli
-using GraduationProject.Managers;
+using UnityEngine.UI;
+using System.Linq;
+using System.Threading.Tasks; // Task kullanımı için
+using GraduationProject.Managers; // Kendi namespace'lerin
 using GraduationProject.Models;
 using GraduationProject.Utilities;
 
@@ -11,87 +11,133 @@ namespace GraduationProject.Controllers
 {
     public class SelectionController : MonoBehaviour
     {
-        // --- İŞTE BU SATIR EKSİKTİ, O YÜZDEN HATA VERİYORDU ---
         [Header("UI Referansları")]
         public ScrollRect scrollView;
-        // ------------------------------------------------------
 
-private async void Start()
-{
-    // 1) Scroll'u en aşağı çekme kısmı
-    if (scrollView != null)
-    {
-        Canvas.ForceUpdateCanvases();
-        scrollView.verticalNormalizedPosition = 0f;
-    }
-    else
-    {
-        Debug.LogWarning("[SelectionController] Scroll View inspector'da atanmamış!");
-    }
-
-    // 2) APIManager var mı?
-    if (APIManager.Instance == null)
-    {
-        Debug.LogError("[SelectionController] APIManager.Instance = null! " +
-                       "Bu sahneyi doğrudan çalıştırıyorsun ya da sahnede APIManager yok. " +
-                       "Oyunu LoginScene'den başlat veya sahneye APIManager prefabını ekle.");
-        return;
-    }
-
-    // 3) PlayerId set edilmiş mi?
-    if (GameContext.PlayerId <= 0)
-    {
-        Debug.LogWarning("[SelectionController] GameContext.PlayerId = 0 veya set edilmemiş. " +
-                         "Muhtemelen login akışından gelmiyorsun.");
-        return;
-    }
-
-    // 4) Görevleri çek
-    var tasks = await APIManager.Instance.GetTasksAsync(GameContext.PlayerId);
-
-    if (tasks == null)
-    {
-        Debug.LogWarning("[SelectionController] tasks listesi null döndü.");
-        return;
-    }
-
-    // 5) Sahnedeki butonları bul
-    var tumButonlar = FindObjectsOfType<LevelIdentifier>();
-
-    foreach (var task in tasks)
-    {
-        var hedefButon = tumButonlar.FirstOrDefault(x => x.levelID == task.TaskId);
-        if (hedefButon != null)
+        // SESSİZ HARFLER LİSTESİ (Sıralama ID belirler: B=1, C=2...)
+        // Ğ hariç, alfabetik sıra.
+        private readonly string[] _orderedConsonants = new string[]
         {
-            Ayarla(hedefButon, task);
+            "B", "C", "Ç", "D", "F", "G", "H", "J", "K", "L", 
+            "M", "N", "P", "R", "S", "Ş", "T", "V", "Y", "Z"
+        };
+
+        private async void Start()
+        {
+            // 1) ÖNCE BUTONLARI OTOMATİK HARİTALANDIR
+            // API isteği gelmeden önce butonların ID'lerinin set edilmiş olması lazım.
+            AutoMapLevelButtons();
+
+            // 2) Scroll Ayarı
+            if (scrollView != null)
+            {
+                Canvas.ForceUpdateCanvases();
+                scrollView.verticalNormalizedPosition = 0f;
+            }
+
+            // 3) Güvenlik Kontrolleri
+            if (APIManager.Instance == null || GameContext.PlayerId <= 0)
+            {
+                Debug.LogWarning("APIManager eksik veya PlayerId yok. Test modunda olabilirsin.");
+                // Test için return etmiyoruz, butonları görmen için devam etsin (Opsiyonel)
+            }
+
+            // 4) API'den Görevleri Çek
+            // PlayerId varsa API'ye git, yoksa hata vermemesi için boş liste dön
+            List<TaskItem> tasks = null;
+            if (GameContext.PlayerId > 0 && APIManager.Instance != null)
+            {
+                tasks = await APIManager.Instance.GetTasksAsync(GameContext.PlayerId);
+            }
+
+            // 5) Butonları API verisine göre boya
+            if (tasks != null)
+            {
+                UpdateButtonsVisuals(tasks);
+            }
         }
-    }
-}
 
-
-        private void Ayarla(LevelIdentifier btn, TaskItem task)
+        /// <summary>
+        /// Sahnedeki LevelIdentifier butonlarını bulur, isimlerine bakar (örn: Level_B)
+        /// ve listemize göre ID ve Harf Kodu atamasını otomatik yapar.
+        /// </summary>
+        private void AutoMapLevelButtons()
         {
-            // Yazıyı güncelle
-            if (btn.letterText) btn.letterText.text = task.LetterCode;
+            // Sahnedeki tüm level butonlarını bul
+            var allButtons = FindObjectsOfType<LevelIdentifier>();
 
-            // Rengi ve kilidi güncelle
-            switch (task.Status)
+            foreach (var btn in allButtons)
+            {
+                // Objenin adı "Level_B" gibi olmalı. "_" işaretinden sonrasını alıyoruz.
+                // Örnek: "Level_B" -> split[1] = "B"
+                string objName = btn.gameObject.name;
+                
+                if (!objName.Contains("_"))
+                {
+                    Debug.LogWarning($"[AutoMap] '{objName}' isimlendirme formatına uymuyor! (Beklenen: Level_X)");
+                    continue;
+                }
+
+                string letterFromObj = objName.Split('_')[1]; // B, C, Ç ...
+
+                // Listede kaçıncı sırada olduğunu bul
+                int index = System.Array.IndexOf(_orderedConsonants, letterFromObj);
+
+                if (index != -1)
+                {
+                    // ID = Index + 1 (Çünkü Array 0'dan başlar, veritabanı genelde 1'den)
+                    btn.levelID = index + 1;
+                    btn.letterCode = letterFromObj;
+                    
+                    // Buton üzerindeki Text'i de hemen güncelleyelim (Görseli netleştirmek için)
+                    if (btn.letterText != null)
+                        btn.letterText.text = letterFromObj;
+
+                    // Debug.Log($"[AutoMap] {objName} atandı -> ID: {btn.levelID}, Harf: {btn.letterCode}");
+                }
+                else
+                {
+                    Debug.LogError($"[AutoMap] '{objName}' objesindeki '{letterFromObj}' harfi sessiz harfler listesinde yok!");
+                }
+            }
+        }
+
+        private void UpdateButtonsVisuals(List<TaskItem> tasks)
+        {
+            var allButtons = FindObjectsOfType<LevelIdentifier>();
+
+            foreach (var task in tasks)
+            {
+                // Artık butonların ID'si otomatik atandı, güvenle eşleştirebiliriz.
+                var targetBtn = allButtons.FirstOrDefault(x => x.levelID == task.TaskId);
+
+                if (targetBtn != null)
+                {
+                    ApplyButtonStatus(targetBtn, task);
+                }
+            }
+        }
+
+        private void ApplyButtonStatus(LevelIdentifier btn, TaskItem task)
+        {
+            // Senin yazdığın switch-case yapısı buraya
+             switch (task.Status)
             {
                 case "Completed":
-                    btn.myImage.color = Color.green;
-                    if (btn.lockImage) btn.lockImage.SetActive(false);
+                    if(btn.myImage) btn.myImage.color = Color.green;
+                    if(btn.lockImage) btn.lockImage.SetActive(false);
                     btn.myButton.interactable = true;
                     break;
 
                 case "Assigned":
-                    btn.myImage.color = Color.yellow;
-                    if (btn.lockImage) btn.lockImage.SetActive(false);
+                    if(btn.myImage) btn.myImage.color = Color.yellow;
+                    if(btn.lockImage) btn.lockImage.SetActive(false);
                     btn.myButton.interactable = true;
                     break;
 
                 default: // Locked
-                    btn.myImage.color = Color.gray;
-                    if (btn.lockImage) btn.lockImage.SetActive(true);
+                    if(btn.myImage) btn.myImage.color = Color.gray;
+                    if(btn.lockImage) btn.lockImage.SetActive(true);
                     btn.myButton.interactable = false;
                     break;
             }

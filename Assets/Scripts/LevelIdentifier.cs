@@ -4,20 +4,21 @@ using TMPro;
 
 public class LevelIdentifier : MonoBehaviour
 {
-    [Header("Bu Levelin Kimliği")]
-    public int levelID;      // Veritabanındaki Task ID (1, 2, 3...)
-    public string harfKodu;  // Hangi harf? (B, C, Ç...)
+    [Header("Otomatik Atanacak (Elle Dokunma)")]
+    public int levelID;       // SelectionController tarafından doldurulacak
+    public string letterCode; // SelectionController tarafından doldurulacak
 
     [Header("Otomatik Bağlantılar")]
     public Button myButton;
     public Image myImage;
     public GameObject lockImage;
-    public TMP_Text letterText;
+    public TextMeshProUGUI letterText;
 
-    // Editörde kolaylık olsun diye, değer değişince text'i güncelle
+    // Editörde componentleri otomatik bulmak için kolaylık (Opsiyonel)
     private void OnValidate()
     {
-        if (letterText != null) letterText.text = harfKodu;
-        gameObject.name = "Level_" + harfKodu; // Obje ismini de düzeltir
+        if (myButton == null) myButton = GetComponent<Button>();
+        if (myImage == null) myImage = GetComponent<Image>();
+        // Text ve Lock objeleri genelde child olduğu için elle atamak daha sağlıklı olabilir
     }
 }
