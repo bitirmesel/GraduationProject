@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
-using System.Linq; // Listede arama yapmak için gerekli
+using UnityEngine.UI; // ScrollRect ve Image için gerekli
+using System.Linq;    // Listede arama yapmak için gerekli
+using TMPro;          // TextMeshPro için gerekli
 using GraduationProject.Managers;
 using GraduationProject.Models;
 using GraduationProject.Utilities;
@@ -10,85 +11,90 @@ namespace GraduationProject.Controllers
 {
     public class SelectionController : MonoBehaviour
     {
+        // --- İŞTE BU SATIR EKSİKTİ, O YÜZDEN HATA VERİYORDU ---
         [Header("UI Referansları")]
-        public ScrollRect scrollView; 
-        
-        // Sahnedeki (Elle koyduğun) tüm butonların listesi
-        private List<LevelIdentifier> tumButonlar;
+        public ScrollRect scrollView;
+        // ------------------------------------------------------
 
-        private async void Start()
+private async void Start()
+{
+    // 1) Scroll'u en aşağı çekme kısmı
+    if (scrollView != null)
+    {
+        Canvas.ForceUpdateCanvases();
+        scrollView.verticalNormalizedPosition = 0f;
+    }
+    else
+    {
+        Debug.LogWarning("[SelectionController] Scroll View inspector'da atanmamış!");
+    }
+
+    // 2) APIManager var mı?
+    if (APIManager.Instance == null)
+    {
+        Debug.LogError("[SelectionController] APIManager.Instance = null! " +
+                       "Bu sahneyi doğrudan çalıştırıyorsun ya da sahnede APIManager yok. " +
+                       "Oyunu LoginScene'den başlat veya sahneye APIManager prefabını ekle.");
+        return;
+    }
+
+    // 3) PlayerId set edilmiş mi?
+    if (GameContext.PlayerId <= 0)
+    {
+        Debug.LogWarning("[SelectionController] GameContext.PlayerId = 0 veya set edilmemiş. " +
+                         "Muhtemelen login akışından gelmiyorsun.");
+        return;
+    }
+
+    // 4) Görevleri çek
+    var tasks = await APIManager.Instance.GetTasksAsync(GameContext.PlayerId);
+
+    if (tasks == null)
+    {
+        Debug.LogWarning("[SelectionController] tasks listesi null döndü.");
+        return;
+    }
+
+    // 5) Sahnedeki butonları bul
+    var tumButonlar = FindObjectsOfType<LevelIdentifier>();
+
+    foreach (var task in tasks)
+    {
+        var hedefButon = tumButonlar.FirstOrDefault(x => x.levelID == task.TaskId);
+        if (hedefButon != null)
         {
-            // 1. Sahnedeki elle koyduğun tüm LevelIdentifier scriptlerini bul ve listeye al
-            // (MapHolder'ın içindekileri bulur)
-            tumButonlar = new List<LevelIdentifier>(FindObjectsOfType<LevelIdentifier>());
-
-            // Scroll'u en aşağıya çek
-            if (scrollView != null) 
-            {
-                Canvas.ForceUpdateCanvases();
-                scrollView.verticalNormalizedPosition = 0f; 
-            }
-
-            // 2. Backend'den veriyi çek (Artık ID'ye göre eşleştireceğiz)
-            var tasks = await APIManager.Instance.GetTasksAsync(GameContext.PlayerId);
-
-            if (tasks != null)
-            {
-                UpdateButtons(tasks);
-            }
+            Ayarla(hedefButon, task);
         }
+    }
+}
 
-        private void UpdateButtons(List<TaskItem> tasks)
+
+        private void Ayarla(LevelIdentifier btn, TaskItem task)
         {
-            // Backend'den gelen her bir görev için...
-            foreach (var task in tasks)
-            {
-                // Bu Task ID'sine sahip butonu sahnede bul
-                // Örn: Backend TaskID=1 gönderdi, sahnede LevelID=1 olan butonu buluyoruz.
-                var hedefButon = tumButonlar.FirstOrDefault(x => x.levelID == task.TaskId);
+            // Yazıyı güncelle
+            if (btn.letterText) btn.letterText.text = task.LetterCode;
 
-                if (hedefButon != null)
-                {
-                    // Butonu Bulduk! Şimdi durumunu güncelle.
-                    Ayarla(hedefButon, task);
-                }
-            }
-        }
-
-        private void Ayarla(LevelIdentifier btnScript, TaskItem task)
-        {
-            // Yazıyı Backend'den gelenle güncelle (veya elle yazdığın kalabilir)
-            if(btnScript.letterText) btnScript.letterText.text = task.LetterCode;
-
+            // Rengi ve kilidi güncelle
             switch (task.Status)
             {
                 case "Completed":
-                    btnScript.myImage.color = Color.green;
-                    if (btnScript.lockImage) btnScript.lockImage.SetActive(false);
-                    btnScript.myButton.interactable = true;
+                    btn.myImage.color = Color.green;
+                    if (btn.lockImage) btn.lockImage.SetActive(false);
+                    btn.myButton.interactable = true;
                     break;
 
                 case "Assigned":
-                    btnScript.myImage.color = Color.yellow;
-                    if (btnScript.lockImage) btnScript.lockImage.SetActive(false);
-                    btnScript.myButton.interactable = true;
+                    btn.myImage.color = Color.yellow;
+                    if (btn.lockImage) btn.lockImage.SetActive(false);
+                    btn.myButton.interactable = true;
                     break;
 
                 default: // Locked
-                    btnScript.myImage.color = Color.gray;
-                    if (btnScript.lockImage) btnScript.lockImage.SetActive(true);
-                    btnScript.myButton.interactable = false;
+                    btn.myImage.color = Color.gray;
+                    if (btn.lockImage) btn.lockImage.SetActive(true);
+                    btn.myButton.interactable = false;
                     break;
             }
-            
-            // Tıklama özelliği
-            btnScript.myButton.onClick.RemoveAllListeners(); // Eski tıklamaları temizle
-            btnScript.myButton.onClick.AddListener(() => 
-            {
-                Debug.Log($"Level Seçildi! ID: {task.TaskId}, Harf: {task.LetterCode}");
-                // GameContext.CurrentTaskID = task.TaskId; // İleride açacağız
-                // SceneManager.LoadScene("GameScene");
-            });
         }
     }
 }
