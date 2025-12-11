@@ -72,33 +72,33 @@ public class APIManager : MonoBehaviour
         // ─────────────────────────────────────────────────────
 // APIManager.cs içindeki GetTasksAsync fonksiyonunu bununla değiştir:
 
+// APIManager.cs içindeki GetTasksAsync fonksiyonu:
+
 public async Task<List<TaskItem>> GetTasksAsync(long playerId)
+{
+    await Task.Delay(100); 
+
+    List<TaskItem> mockTasks = new List<TaskItem>();
+    
+    // Sadece Sessiz Harfler
+    string[] sessizHarfler = { "B", "C", "Ç", "D", "F", "G", "Ğ", "H", "J", "K", "L", "M", "N", "P", "R", "S", "Ş", "T", "V", "Y", "Z" };
+
+    for (int i = 0; i < sessizHarfler.Length; i++)
+    {
+        mockTasks.Add(new TaskItem
         {
-            await Task.Delay(100); 
-
-            List<TaskItem> mockTasks = new List<TaskItem>();
+            TaskId = i + 1, // ID: 1, 2, 3... diye gidecek.
+            LetterCode = sessizHarfler[i], 
             
-            // TÜRKÇE ALFABE - Sırayla bunları butonlara yazacak
-            string alfabe = "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ"; 
+            // Örnek Durum: İlk 2'si bitmiş, 3.sü oynanacak
+            Status = (i < 2) ? "Completed" : (i == 2 ? "Assigned" : "Locked"),
+            
+            GameType = 1
+        });
+    }
 
-            for (int i = 0; i < alfabe.Length; i++)
-            {
-                // Eğer harf sayısı nokta sayısını geçerse döngüyü durdur (Hata almamak için)
-                // (Bu kontrolü SelectionController'da da yapıyoruz ama burada da olsun)
-                 if (i >= alfabe.Length) break;
-
-                mockTasks.Add(new TaskItem
-                {
-                    TaskId = i + 1,
-                    LetterCode = alfabe[i].ToString(), // Sıradaki harfi al
-                    // İlk 3 bitmiş (Yeşil), 4. sırada (Sarı), gerisi kilitli (Gri)
-                    Status = (i < 3) ? "Completed" : (i == 3 ? "Assigned" : "Locked"),
-                    GameType = 1
-                });
-            }
-
-            return mockTasks;
-        }
+    return mockTasks;
+}
 
   
         public async Task<User> TherapistLoginAsync(string email, string password)
