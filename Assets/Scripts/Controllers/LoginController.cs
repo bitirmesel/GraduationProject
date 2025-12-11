@@ -95,7 +95,7 @@ namespace GraduationProject.Controllers
                 await System.Threading.Tasks.Task.Delay(800);
 
                 // Görev/harita sahnesine geç
-                SceneManager.LoadScene(GameConstants.SCENE_MAP);
+                SceneManager.LoadScene(GameConstants.SCENE_NOTIFICATION);
             }
             catch (System.SystemException ex)
             {

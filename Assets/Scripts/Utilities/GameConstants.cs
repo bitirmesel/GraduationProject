@@ -7,5 +7,6 @@ namespace GraduationProject.Utilities
         public const string SCENE_MAP = "MapScene";
         public const string SCENE_GAME = "GameScene";
         public const string SCENE_RESULT = "ResultScene";
+        public const string SCENE_NOTIFICATION = "NotificationScene"; 
     }
 }

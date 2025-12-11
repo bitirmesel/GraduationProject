@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -12,11 +13,10 @@ namespace GraduationProject.Managers
         public static APIManager Instance { get; private set; }
 
         [Header("API Settings")]
-        // ÖNEMLİ: Buraya Render'daki .NET API base adresini yaz.
-        // Örnek: "https://dktapi.onrender.com"
+        // Base URL: sadece domain + port
+        // Örn: https://backendapi-8nfn.onrender.com
         [SerializeField] private string _baseUrl = "https://backendapi-8nfn.onrender.com";
 
-        // Terapist tarafı için kullandığın JWT token (Unity'de lazım olursa)
         private string _jwtToken;
 
         private void Awake()
@@ -32,10 +32,7 @@ namespace GraduationProject.Managers
             }
         }
 
-        // ─────────────────────────────────────────────────────
-        //  PLAYER LOGIN  (Unity'den çocuk girişi)
-        //  POST /api/player/auth/login
-        // ─────────────────────────────────────────────────────
+        // -------------------- PLAYER LOGIN --------------------
         public async Task<PlayerLoginResponseDto> PlayerLoginAsync(string nickname, string password)
         {
             string url = $"{_baseUrl}/api/player/auth/login";
@@ -47,12 +44,11 @@ namespace GraduationProject.Managers
             };
 
             string jsonBody = JsonConvert.SerializeObject(requestData);
-
             string response = await SendPostRequest(url, jsonBody, requiresAuth: false);
 
             if (string.IsNullOrEmpty(response))
             {
-                Debug.LogError("[APIManager] PlayerLogin başarısız, boş response.");
+                Debug.LogError("[APIManager] PlayerLogin boş response döndü.");
                 return null;
             }
 
@@ -61,7 +57,7 @@ namespace GraduationProject.Managers
                 var player = JsonConvert.DeserializeObject<PlayerLoginResponseDto>(response);
                 if (player == null)
                 {
-                    Debug.LogError("[APIManager] PlayerLogin: response deserialize edilemedi.");
+                    Debug.LogError("[APIManager] PlayerLogin deserialize edilemedi.");
                     return null;
                 }
 
@@ -75,22 +71,18 @@ namespace GraduationProject.Managers
             }
         }
 
-        // ─────────────────────────────────────────────────────
-        // (İstersen TERAPİST LOGIN'i de burada bırakabilirsin)
-        //  POST /api/auth/login
-        // ─────────────────────────────────────────────────────
+        // (İstersen terapist login burada kalabilir)
         public async Task<User> TherapistLoginAsync(string email, string password)
         {
             string url = $"{_baseUrl}/api/auth/login";
 
             var requestData = new LoginRequestDTO
             {
-                Username = email,   // backend'de Email kullanıyorsan ona göre güncelle
+                Username = email,
                 Password = password
             };
 
             string jsonBody = JsonConvert.SerializeObject(requestData);
-
             string response = await SendPostRequest(url, jsonBody, requiresAuth: false);
 
             if (string.IsNullOrEmpty(response))
@@ -105,10 +97,7 @@ namespace GraduationProject.Managers
             return user;
         }
 
-        // ─────────────────────────────────────────────────────
-        //  GENERAL HELPERS
-        // ─────────────────────────────────────────────────────
-
+        // -------------------- HELPERS --------------------
         private async Task<string> SendPostRequest(string url, string jsonBody, bool requiresAuth)
         {
             using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
@@ -142,7 +131,6 @@ namespace GraduationProject.Managers
             }
         }
 
-        // GET istekleri için de lazım olacak (ör: aktif görev listesi)
         public async Task<string> SendGetRequest(string url, bool requiresAuth)
         {
             using (UnityWebRequest request = UnityWebRequest.Get(url))
@@ -169,6 +157,20 @@ namespace GraduationProject.Managers
                     return null;
                 }
             }
+        }
+
+        // ------------ PLAYER İÇİN TÜM GÖREVLER ------------
+        public async Task<List<PlayerTaskDto>> GetAllTasksForPlayer(long playerId)
+        {
+            // SUNUCU TARAFI: /api/players/{playerId}/tasks
+            string url = $"{_baseUrl}/api/players/{playerId}/tasks";
+
+            string json = await SendGetRequest(url, requiresAuth: false);
+
+            if (string.IsNullOrEmpty(json))
+                return null;
+
+            return JsonConvert.DeserializeObject<List<PlayerTaskDto>>(json);
         }
     }
 }
