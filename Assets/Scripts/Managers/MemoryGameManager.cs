@@ -1,99 +1,118 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks; // Async işlemler için
 using UnityEngine;
 using UnityEngine.UI;
+using GraduationProject.Managers; // APIManager ve AssetLoader
+using GraduationProject.Models;  // Modeller
 
-public class MemoryGameManager : MonoBehaviour
+// ARTIK 'MonoBehaviour' DEĞİL 'BaseGameManager'DAN MİRAS ALIYOR
+public class MemoryGameManager : BaseGameManager
 {
     [Header("References")]
-    [SerializeField] private Transform _gridContainer; // Kartların dizileceği Grid Layout Group
-    [SerializeField] private MemoryCard _cardPrefab;   // Kart prefabı
+    [SerializeField] private Transform _gridContainer; // Kartların dizileceği Grid
+    [SerializeField] private MemoryCard _cardPrefab;   // Kart Prefab'ı
 
-    [Header("Test Data (Backend Yokken)")]
-    [SerializeField] private Sprite _cardBackSprite;    // Test modunda kart arkası
-    [SerializeField] private List<Sprite> _faceSprites; // Test için meyve/hayvan resimleri
+    [Header("Game Configuration")]
+    // Bu prefab SADECE Hafıza Oyunu (ID:4) içindir.
+    [SerializeField] private long _fixedGameId = 4; 
 
-    private MemoryCard _firstCard;   // Açılan ilk kart
-    private MemoryCard _secondCard;  // Açılan ikinci kart
+    // Dinamik Görseller
+    private Sprite _cardBackSprite; // API'den "background" olarak gelecek
+    private List<Sprite> _faceSprites = new List<Sprite>(); // Kart ön yüzleri
 
-    private bool _canClick = true;   // Oyuncu tıklayabilir mi?
-    private int _matchesFound = 0;   // Bulunan eşleşme sayısı
-    private int _totalPairs = 0;     // Toplam çift sayısı
+    // Oyun Mantığı Değişkenleri
+    private MemoryCard _firstCard;  
+    private MemoryCard _secondCard; 
+    private bool _canClick = true;  
+    private int _matchesFound = 0;  
+    private int _totalPairs = 0;    
 
-    // Dışarıdan veri geldi mi? (GameSceneController vs.)
-    private bool _startedWithExternalAssets = false;
-
-    private void Start()
+    // ----------------------------------------------------------------
+    // 1. BAŞLATMA (GameLoader Tarafından Çağrılır)
+    // ----------------------------------------------------------------
+    public override async Task InitializeGame(long letterId)
     {
-        // Eğer dışarıdan StartGameWithAssets çağrılmadıysa
-        // ve test datası doluysa, test modunda oyunu başlat.
-        if (!_startedWithExternalAssets)
-        {
-            if (_faceSprites != null && _faceSprites.Count > 0 && _cardBackSprite != null)
-            {
-                Debug.Log("[MemoryGameManager] Test modunda başlatılıyor (_faceSprites kullanılıyor).");
-                BuildDeckAndSpawn();
-            }
-            else
-            {
-                Debug.LogWarning("[MemoryGameManager] Başlatmak için dışarıdan asset bekleniyor veya test datası boş.");
-            }
-        }
+        Debug.Log($"[MemoryGameManager] Oyun Başlatılıyor... LetterID: {letterId}");
+
+        // Temizlik (Eski kartlar varsa sil)
+        foreach (Transform child in _gridContainer) Destroy(child.gameObject);
+
+        // Buluttan verileri çek
+        await LoadAssetsFromCloud(letterId);
     }
 
-    /// <summary>
-    /// GameSceneController gibi başka bir script, backend’den/AssetLoader’dan yüklediği
-    /// sprite’ları buraya verir. Böylece runtime verisiyle oyun başlar.
-    /// </summary>
-    public void StartGameWithAssets(List<Sprite> faceSprites, Sprite backSprite)
+    private async Task LoadAssetsFromCloud(long letterId)
     {
-        if (faceSprites == null || faceSprites.Count == 0)
+        // A. Konfigürasyonu İste
+        var config = await APIManager.Instance.GetGameConfigAsync(_fixedGameId, letterId);
+        
+        if (config == null) 
         {
-            Debug.LogError("[MemoryGameManager] StartGameWithAssets: faceSprites boş!");
+            Debug.LogError("[MemoryGameManager] Config alınamadı! İnternet hatası.");
             return;
         }
 
-        _startedWithExternalAssets = true;
-        _faceSprites = faceSprites;
-        if (backSprite != null)
-            _cardBackSprite = backSprite;
+        Debug.Log($"[MemoryGameManager] {config.Items.Count} adet varlık indirilecek.");
 
-        Debug.Log($"[MemoryGameManager] {faceSprites.Count} adet kart yüzü ile oyun başlatılıyor.");
-        BuildDeckAndSpawn();
-    }
+        // B. Resimleri İndir
+        _faceSprites.Clear();
+        _cardBackSprite = null;
 
-    /// <summary>
-    /// Eski StartGame gövdesi buraya taşındı.
-    /// Hem test modunda hem de dışarıdan gelen asset’lerle aynı mantığı kullanıyoruz.
-    /// </summary>
-    private void BuildDeckAndSpawn()
-    {
-        // 1. Önceki oyundan kalan kartları temizle
-        foreach (Transform child in _gridContainer)
+        foreach (var item in config.Items)
         {
-            Destroy(child.gameObject);
+            string fullUrl = config.BaseUrl + item.File;
+            
+            // AssetLoader Singleton Çağrısı
+            Sprite downloadedSprite = await AssetLoader.Instance.GetSpriteAsync(fullUrl, item.File);
+
+            if (downloadedSprite != null)
+            {
+                // 'background' kontrolü
+                if (item.Key == "background")
+                {
+                    _cardBackSprite = downloadedSprite;
+                    _cardBackSprite.name = "CardBack";
+                }
+                else
+                {
+                    downloadedSprite.name = item.Key; 
+                    _faceSprites.Add(downloadedSprite);
+                }
+            }
         }
 
-        if (_faceSprites == null || _faceSprites.Count == 0)
+        // C. Güvenlik Kontrolü
+        if (_cardBackSprite == null)
+            Debug.LogWarning("API'de 'background' görseli yok. Kart arkaları boş kalabilir.");
+
+        // D. Oyunu Kur
+        SetupGrid();
+    }
+
+    // ----------------------------------------------------------------
+    // 2. SAHNE KURULUMU (Kartları Dizme)
+    // ----------------------------------------------------------------
+    private void SetupGrid()
+    {
+        if (_faceSprites.Count == 0)
         {
-            Debug.LogError("[MemoryGameManager] Kart yüzü yok, oyun başlatılamaz.");
+            Debug.LogError("HATA: Hiç kart görseli yüklenemedi!");
             return;
         }
 
-        // 2. Kart çiftlerini oluştur (Örn: 4 resim varsa 8 kart olur)
+        // Deste Oluşturma: Her resimden 2 tane
         List<Sprite> deck = new List<Sprite>();
-
-        // Her resimden 2 tane ekle
         foreach (Sprite s in _faceSprites)
         {
             deck.Add(s);
-            deck.Add(s);
+            deck.Add(s); 
         }
 
         _totalPairs = _faceSprites.Count;
         _matchesFound = 0;
 
-        // 3. Desteyi Karıştır (Fisher-Yates Shuffle)
+        // Karıştırma (Fisher-Yates)
         for (int i = 0; i < deck.Count; i++)
         {
             Sprite temp = deck[i];
@@ -102,75 +121,56 @@ public class MemoryGameManager : MonoBehaviour
             deck[randomIndex] = temp;
         }
 
-        // 4. Kartları Sahneye Koy
+        // Sahneye Yerleştirme
         foreach (Sprite sprite in deck)
         {
             MemoryCard cardObj = Instantiate(_cardPrefab, _gridContainer);
-
-            // Kartın ID'si olarak Sprite'ın adını veya hash kodunu kullanabiliriz
-            // Aynı resme sahip kartlar aynı ID'ye sahip olur.
-            int cardId = sprite.name.GetHashCode();
-
+            int cardId = sprite.name.GetHashCode(); 
+            
             cardObj.Setup(cardId, sprite, _cardBackSprite, OnCardSelected);
         }
-
-        _canClick = true;
     }
 
-    // Eğer istersen dışarıdan da çağırabil (UI butonu vs.)
-    public void RestartGame()
-    {
-        BuildDeckAndSpawn();
-    }
-
+    // ----------------------------------------------------------------
+    // 3. OYUN MANTIĞI
+    // ----------------------------------------------------------------
     private void OnCardSelected(MemoryCard clickedCard)
     {
         if (!_canClick) return;
-        if (clickedCard == null) return;
 
-        // Kartı aç
         clickedCard.FlipOpen();
 
-        // İlk kart mı?
         if (_firstCard == null)
         {
             _firstCard = clickedCard;
         }
         else
         {
-            // İkinci kart seçildi
             _secondCard = clickedCard;
-            _canClick = false; // Kontrol bitene kadar tıklamayı engelle
-
+            _canClick = false;
             StartCoroutine(CheckMatch());
         }
     }
 
     private IEnumerator CheckMatch()
     {
-        // Kartlar görünsün diye az bekle
         yield return new WaitForSeconds(1.0f);
 
-        if (_firstCard != null && _secondCard != null &&
-            _firstCard.CardID == _secondCard.CardID)
+        if (_firstCard.CardID == _secondCard.CardID)
         {
-            // EŞLEŞME OLDU!
-            Debug.Log("Eşleşme Başarılı!");
+            // Eşleşme
             _firstCard.SetMatched();
             _secondCard.SetMatched();
-
             _matchesFound++;
             CheckGameOver();
         }
         else
         {
-            // EŞLEŞME OLMADI, KAPAT
-            Debug.Log("Eşleşmedi...");
-            if (_firstCard != null) _firstCard.FlipBack();
-            if (_secondCard != null) _secondCard.FlipBack();
+            // Hata
+            _firstCard.FlipBack();
+            _secondCard.FlipBack();
         }
 
-        // Seçimleri sıfırla
         _firstCard = null;
         _secondCard = null;
         _canClick = true;
@@ -180,8 +180,9 @@ public class MemoryGameManager : MonoBehaviour
     {
         if (_matchesFound >= _totalPairs)
         {
-            Debug.Log("OYUN BİTTİ! TEBRİKLER! 🎉");
-            // Buraya "Level Completed" paneli açma kodu gelecek
+            // Base Class'taki bitiş fonksiyonunu çağırıyoruz
+            // Bu sayede GameLoader veya LevelManager oyunun bittiğini anlar
+            GameCompleted(); 
         }
     }
 }

@@ -1,29 +1,37 @@
-// GameSceneController.cs (örnek)
 using UnityEngine;
-using System.Collections.Generic;
 using System.Threading.Tasks;
-using GraduationProject.Utilities;   // AssetLoader, GameContext
+using GraduationProject.Managers; // AssetLoader ve APIManager için şart!
+using GraduationProject.Utilities; // GameContext için şart!
 
 public class GameSceneController : MonoBehaviour
 {
-    public MemoryGameManager memoryManager;
+    [Header("Oyun Referansı")]
+    // Buraya sahnedeki MemoryGameManager (veya Prefab) atanacak
+    public BaseGameManager CurrentGameManager; 
 
     private async void Start()
     {
-        // 1) Kart arkası
-        Sprite backSprite = null;
-        if (!string.IsNullOrEmpty(GameContext.CardBackUrl))
-            backSprite = await AssetLoader.LoadSpriteAsync(GameContext.CardBackUrl);
+        // 1. Hangi harfin oynanacağını belirle
+        long letterIdToPlay = 9; // Varsayılan (Test - K Harfi)
 
-        // 2) Kart yüzleri
-        var faces = new List<Sprite>();
-        foreach (var url in GameContext.ImageUrls)
+        // Eğer menüden seçim yapıldıysa onu kullan
+        if (GameContext.SelectedLetterId != 0)
         {
-            var sp = await AssetLoader.LoadSpriteAsync(url);
-            if (sp != null) faces.Add(sp);
+            letterIdToPlay = GameContext.SelectedLetterId;
         }
 
-        // 3) MemoryGameManager’a ver
-        memoryManager.StartGameWithAssets(faces, backSprite);
+        Debug.Log($"[GameSceneController] Oyun Başlatılıyor. LetterID: {letterIdToPlay}");
+
+        // 2. Oyunu Başlat
+        // ESKİSİ: StartGameWithAssets(...) -> ARTIK YOK
+        // YENİSİ: InitializeGame(...)
+        if (CurrentGameManager != null)
+        {
+            await CurrentGameManager.InitializeGame(letterIdToPlay);
+        }
+        else
+        {
+            Debug.LogError("[GameSceneController] CurrentGameManager atanmamış! Inspector'dan atayın.");
+        }
     }
 }
