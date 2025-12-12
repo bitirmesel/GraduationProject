@@ -6,10 +6,10 @@ namespace GraduationProject.Models
     [System.Serializable]
     public class GameAssetConfig
     {
-        [JsonProperty("config_id")]
+        [JsonProperty("configId")]
         public string ConfigId { get; set; }
 
-        [JsonProperty("base_url")]
+        [JsonProperty("baseUrl")]
         public string BaseUrl { get; set; }
 
         [JsonProperty("items")]
