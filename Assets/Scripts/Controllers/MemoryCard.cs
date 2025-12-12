@@ -5,59 +5,65 @@ using System;
 public class MemoryCard : MonoBehaviour
 {
     [Header("UI References")]
-    [SerializeField] private Image _cardImage; // Kartın üzerindeki Image bileşeni
-    [SerializeField] private Button _btnComponent; // Tıklama için Button bileşeni
+    [SerializeField] private Image _cardImage; 
+    [SerializeField] private Button _btnComponent; 
 
-    [Header("Settings")]
-    [SerializeField] private Sprite _cardBackSprite; // Kartın arkası (Kapalı hali)
+    public int CardID { get; private set; }
+    public bool IsRevealed { get; private set; } = false;
+    public bool IsMatched { get; private set; } = false;
 
-    public int CardID { get; private set; } // Eşleşme kontrolü için kimlik
-    public bool IsMatched { get; private set; } = false; // Eşleşti mi?
+    private Sprite _faceSprite; // Ön yüz (Kedi)
+    private Sprite _backSprite; // Arka yüz (Soru işareti)
+    private Action<MemoryCard> _onClickAction;
 
-    private Sprite _cardFaceSprite; // Kartın ön yüzü (Açık hali)
-    private bool _isFlipped = false; // Şu an açık mı?
-    private Action<MemoryCard> _onClickAction; // Tıklanınca Manager'a haber verecek
-
-    public void Setup(int id, Sprite faceSprite, Sprite backSprite, Action<MemoryCard> onClick)
+    public void Setup(int id, Sprite face, Sprite back, Action<MemoryCard> onClick)
     {
         CardID = id;
-        _cardFaceSprite = faceSprite;
-        _cardBackSprite = backSprite;
+        _faceSprite = face;
+        _backSprite = back;
         _onClickAction = onClick;
 
-        // Başlangıçta kartı kapat
-        FlipBack(); 
+        // Başlangıç: Arkası dönük ve tıklanabilir
+        _cardImage.sprite = _backSprite;
+        IsRevealed = false;
+        IsMatched = false;
+        _btnComponent.interactable = true;
         
+        // Temizlik (Önceki tıklama olaylarını sil)
         _btnComponent.onClick.RemoveAllListeners();
-        _btnComponent.onClick.AddListener(OnCardClicked);
+        _btnComponent.onClick.AddListener(OnClicked);
     }
 
-    private void OnCardClicked()
+    private void OnClicked()
     {
-        // Eğer zaten açıksa, eşleşmişse veya oyun durmuşsa tıklama yapma
-        if (_isFlipped || IsMatched) return;
+        // Kilitliyse veya zaten açıksa tepki verme
+        if (IsRevealed || IsMatched) return;
 
         _onClickAction?.Invoke(this);
     }
 
+    // --- BASİT EYLEMLER ---
+
     public void FlipOpen()
     {
-        _isFlipped = true;
-        _cardImage.sprite = _cardFaceSprite;
-        // İstersen burada animasyon başlatabilirsin
+        IsRevealed = true;
+        _cardImage.sprite = _faceSprite; // Direkt resmi değiştir
+        _btnComponent.interactable = false;
     }
 
     public void FlipBack()
     {
-        _isFlipped = false;
-        _cardImage.sprite = _cardBackSprite;
+        IsRevealed = false;
+        _cardImage.sprite = _backSprite; // Direkt resmi değiştir
+        _btnComponent.interactable = true;
     }
 
     public void SetMatched()
     {
         IsMatched = true;
-        _btnComponent.interactable = false; // Artık tıklanamaz
-        // Eşleşme efekti (Renk değişimi, yok olma vs.) buraya eklenebilir
-        _cardImage.color = Color.gray; 
+        IsRevealed = true;
+        _btnComponent.interactable = false;
+        // İstersen burada kartı yarı şeffaf yapabilirsin:
+        // _cardImage.color = new Color(1, 1, 1, 0.5f);
     }
 }
