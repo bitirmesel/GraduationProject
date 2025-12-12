@@ -1,24 +1,30 @@
-using GraduationProject.Models;
+using System.Collections.Generic;
 
 namespace GraduationProject.Utilities
 {
     public static class GameContext
     {
-        public static long PlayerId;
+        // Zaten vardı:
+        public static long PlayerId { get; set; }
+        public static string PlayerNickname { get; set; }
 
-        // Harf seçimi
-        public static long SelectedLetterId;
-        public static string SelectedLetterCode;
+        // SEÇİLEN HARF
+        public static long SelectedLetterId { get; set; }
+        public static string SelectedLetterCode { get; set; }
 
-        // Oyun seçimi
-        public static long SelectedGameId;      // Şimdilik kullanmasan da dursun
-        public static string SelectedGameType;  // "Memory", "Syllable", "Word", "Sentence"...
+        // SEÇİLEN OYUN
+        // "Syllable", "Word", "Sentence", "Memory" vs.
+        public static string SelectedGameType { get; set; }
 
-        // Zorluk
-        public static int SelectedDifficulty;   // 1: Kolay, 2: Orta, 3: Zor
+        // ZORLUK: 1=Kolay, 2=Orta, 3=Zor
+        public static int SelectedDifficulty { get; set; }
 
-        // Asset set
-        public static long SelectedAssetSetId;
-        public static AssetConfig CurrentAssetConfig; // ScriptableObject tipin
+        // Backend’de bir AssetSet kaydı varsa:
+        public static long SelectedAssetSetId { get; set; }
+
+        // ↓↓↓ AssetLoader için URL’ler ↓↓↓
+        public static string CardBackUrl { get; set; }
+        public static List<string> ImageUrls { get; set; } = new List<string>();
+        public static List<string> AudioUrls { get; set; } = new List<string>();
     }
 }

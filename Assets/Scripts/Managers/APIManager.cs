@@ -67,7 +67,7 @@ namespace GraduationProject.Managers
         // ─────────────────────────────────────────────────────
         public async Task<List<TaskItem>> GetTasksAsync(long playerId)
         {
-            await Task.Delay(100); 
+            await Task.Delay(100);
 
             List<TaskItem> mockTasks = new List<TaskItem>();
             string[] sessizHarfler = { "B", "C", "Ç", "D", "F", "G", "Ğ", "H", "J", "K", "L", "M", "N", "P", "R", "S", "Ş", "T", "V", "Y", "Z" };
@@ -212,5 +212,25 @@ namespace GraduationProject.Managers
                 }
             }
         }
+
+        public async Task<AssetSetDto> GetAssetSetAsync(long letterId, string gameType, int difficulty)
+        {
+            string url = $"{_baseUrl}/api/assets/sets?letterId={letterId}&gameType={gameType}&difficulty={difficulty}";
+
+            string json = await SendGetRequest(url, requiresAuth: false);
+            if (string.IsNullOrEmpty(json))
+                return null;
+
+            try
+            {
+                return JsonConvert.DeserializeObject<AssetSetDto>(json);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError("[APIManager] GetAssetSetAsync parse hatası: " + ex);
+                return null;
+            }
+        }
+
     }
 }

@@ -6,11 +6,37 @@ using System.Threading.Tasks; // Task kullanımı için
 using GraduationProject.Managers; // Kendi namespace'lerin
 using GraduationProject.Models;
 using GraduationProject.Utilities;
+using UnityEngine.SceneManagement;
 
 namespace GraduationProject.Controllers
 {
     public class SelectionController : MonoBehaviour
     {
+
+    public int levelID;
+    public string letterCode;
+
+    public Button myButton;
+    public UnityEngine.UI.Image myImage;
+    public GameObject lockImage;
+
+    private void Awake()
+    {
+        if (myButton == null)
+            myButton = GetComponent<Button>();
+
+        myButton.onClick.AddListener(OnClick);
+    }
+
+    private void OnClick()
+    {
+        // 1) Seçilen harfi kaydet
+        GameContext.SelectedLetterId = levelID;   // DB’de B=1, C=2... ise
+        GameContext.SelectedLetterCode = letterCode;
+
+        // 2) Level Map sahnesine geç
+        SceneManager.LoadScene(GameConstants.SCENE_MAP);
+    }
         [Header("UI Referansları")]
         public ScrollRect scrollView;
 

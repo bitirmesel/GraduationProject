@@ -86,8 +86,8 @@ namespace GraduationProject.Controllers
 
                 // Oturum bilgisini global context'e yaz
                 GameContext.PlayerId   = player.PlayerId;
-                GameContext.Nickname   = player.Nickname;
-                GameContext.TotalScore = player.TotalScore;
+                //GameContext.Nickname   = player.Nickname;
+                //GameContext.TotalScore = player.TotalScore;
 
                 ShowFeedback($"Hoş geldin {player.Nickname}!", Color.green);
 
