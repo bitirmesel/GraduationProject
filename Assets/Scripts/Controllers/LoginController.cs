@@ -26,8 +26,8 @@ namespace GraduationProject.Controllers
             // LoginPanel_Prefab içindeki child objeleri isimle buluyoruz
             _usernameInput = transform.GetComponentInDeepChild<TMP_InputField>(NAME_INPUT_USER);
             _passwordInput = transform.GetComponentInDeepChild<TMP_InputField>(NAME_INPUT_PASS);
-            _loginButton   = transform.GetComponentInDeepChild<Button>(NAME_BTN_LOGIN);
-            _feedbackText  = transform.GetComponentInDeepChild<TMP_Text>(NAME_TXT_FEEDBACK);
+            _loginButton = transform.GetComponentInDeepChild<Button>(NAME_BTN_LOGIN);
+            _feedbackText = transform.GetComponentInDeepChild<TMP_Text>(NAME_TXT_FEEDBACK);
         }
 
         private void Start()
@@ -46,17 +46,16 @@ namespace GraduationProject.Controllers
 
         private async void OnLoginClicked()
         {
+            // 1. Input Kontrolleri
             if (_usernameInput == null || _passwordInput == null)
             {
-                Debug.LogError("[LoginController] Input referansları bulunamadı.");
-                ShowFeedback("Bir hata oluştu. Lütfen geliştiriciye haber ver.", Color.red);
+                Debug.LogError("[LoginController] Input referansları eksik.");
                 return;
             }
 
             if (APIManager.Instance == null)
             {
-                Debug.LogError("[LoginController] APIManager.Instance = null");
-                ShowFeedback("Sunucuya bağlanırken hata oluştu.", Color.red);
+                ShowFeedback("Sunucu bağlantısı hatası.", Color.red);
                 return;
             }
 
@@ -65,42 +64,40 @@ namespace GraduationProject.Controllers
 
             if (string.IsNullOrEmpty(nickname) || string.IsNullOrEmpty(password))
             {
-                ShowFeedback("Lütfen kullanıcı adı ve şifreyi gir.", Color.red);
+                ShowFeedback("Kullanıcı adı ve şifre gerekli.", Color.red);
                 return;
             }
 
+            // 2. Giriş İşlemi Başlıyor
             ToggleInteractable(false);
-            ShowFeedback("Bağlanılıyor...", Color.yellow);
+            ShowFeedback("Giriş yapılıyor...", Color.yellow);
 
             try
             {
-                // PLAYER LOGIN – backend: /api/player/auth/login
+                // 1. API'den Giriş Yap
                 var player = await APIManager.Instance.PlayerLoginAsync(nickname, password);
 
                 if (player == null)
                 {
-                    ShowFeedback("Giriş başarısız. Bilgilerini kontrol et.", Color.red);
+                    ShowFeedback("Hatalı kullanıcı adı veya şifre.", Color.red);
                     ToggleInteractable(true);
                     return;
                 }
 
-                // Oturum bilgisini global context'e yaz
-                GameContext.PlayerId   = player.PlayerId;
-                //GameContext.Nickname   = player.Nickname;
-                //GameContext.TotalScore = player.TotalScore;
-
+                // 2. Başarılı! Verileri Kaydet
+                GameContext.PlayerId = player.PlayerId;
                 ShowFeedback($"Hoş geldin {player.Nickname}!", Color.green);
 
-                // Küçük bir bekleme – çocuk ekranda yazıyı görsün
-                await System.Threading.Tasks.Task.Delay(800);
+                await System.Threading.Tasks.Task.Delay(500);
 
-                // Görev/harita sahnesine geç
-                SceneManager.LoadScene(GameConstants.SCENE_NOTIFICATION);
+                // 3. HİÇ SORMADAN DİREKT HARİTAYA GİT
+                // Görev kontrolünü burada yapmıyoruz, Selection ekranı kendi halledecek.
+                UnityEngine.SceneManagement.SceneManager.LoadScene("SelectionScene");
             }
-            catch (System.SystemException ex)
+            catch (System.Exception ex)
             {
-                Debug.LogError("[LoginController] Login sırasında hata: " + ex);
-                ShowFeedback("Beklenmeyen bir hata oluştu.", Color.red);
+                Debug.LogError("[LoginController] Hata: " + ex.Message);
+                ShowFeedback("Hata oluştu.", Color.red);
                 ToggleInteractable(true);
             }
         }
@@ -118,12 +115,12 @@ namespace GraduationProject.Controllers
         {
             if (_usernameInput != null) _usernameInput.interactable = state;
             if (_passwordInput != null) _passwordInput.interactable = state;
-            if (_loginButton   != null) _loginButton.interactable = state;
+            if (_loginButton != null) _loginButton.interactable = state;
         }
 
         private void ResetUI()
         {
-            if (_feedbackText  != null) _feedbackText.text = "";
+            if (_feedbackText != null) _feedbackText.text = "";
             if (_usernameInput != null) _usernameInput.text = "";
             if (_passwordInput != null) _passwordInput.text = "";
         }

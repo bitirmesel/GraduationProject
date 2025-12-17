@@ -23,55 +23,65 @@ public class MemoryGameManager : BaseGameManager
     // Mantık
     private MemoryCard _firstCard;  
     private MemoryCard _secondCard; 
-    private bool _inputLocked = false; // Tıklama kilidi
+    private bool _inputLocked = false; 
     private int _matchesFound = 0;  
     private int _totalPairs = 0;    
 
-    // --- 1. CLOUD YÜKLEME (AYNEN KALIYOR) ---
+    // --- 1. CLOUD YÜKLEME ---
     public override async Task InitializeGame(long letterId)
-{
-    // Temizlik
-    foreach (Transform child in _gridContainer) Destroy(child.gameObject);
-    _matchesFound = 0;
-    _faceSprites.Clear();
-    _inputLocked = false;
-
-    long gameId = GameContext.SelectedGameId; // ✅ 4
-
-    Debug.Log($"[MemoryGameManager] gameId={gameId} letterId={letterId} config çekiliyor...");
-
-    var config = await APIManager.Instance.GetGameConfigAsync(gameId, letterId);
-    if (config == null)
     {
-        Debug.LogError("[MemoryGameManager] GameConfig gelmedi!");
-        return;
-    }
+        // Temizlik
+        foreach (Transform child in _gridContainer) Destroy(child.gameObject);
+        _matchesFound = 0;
+        _faceSprites.Clear();
+        _inputLocked = false;
 
-    // BACK + FACES
-    _cardBackSprite = null;
-    _faceSprites.Clear();
+        // EMNİYET 1: Eğer Login'den gelmediysen Fixed ID kullan
+        long gameId = GameContext.SelectedGameId > 0 ? GameContext.SelectedGameId : _fixedGameId;
 
-    foreach (var item in config.Items)
-    {
-        string fullUrl = config.BaseUrl + item.File;
-        Sprite sprite = await AssetLoader.Instance.GetSpriteAsync(fullUrl, item.File);
+        Debug.Log($"[MemoryGameManager] gameId={gameId} letterId={letterId} config çekiliyor...");
 
-        if (sprite != null)
+        var config = await APIManager.Instance.GetGameConfigAsync(gameId, letterId);
+        
+        // EMNİYET 2: Config gelmediyse dur
+        if (config == null)
         {
-            if (item.Key == "background") _cardBackSprite = sprite;
-            else _faceSprites.Add(sprite);
+            Debug.LogError("[MemoryGameManager] GameConfig gelmedi! (API 404 veya Bağlantı Hatası)");
+            return;
         }
+
+        // BACK + FACES
+        _cardBackSprite = null;
+        _faceSprites.Clear();
+
+        if (config.Items != null)
+        {
+            for (int i = 0; i < config.Items.Count; i++)
+            {
+                var item = config.Items[i];
+                string fullUrl = config.BaseUrl + item.File;
+                
+                Sprite sprite = await AssetLoader.Instance.GetSpriteAsync(fullUrl, item.File);
+
+                if (sprite != null)
+                {
+                    // Sprite ismini garantiye al (Hash code hatası için)
+                    sprite.name = $"Card_{item.Key}_{i}"; 
+
+                    if (item.Key == "background") _cardBackSprite = sprite;
+                    else _faceSprites.Add(sprite);
+                }
+            }
+        }
+
+        if (_cardBackSprite == null || _faceSprites.Count == 0)
+        {
+            Debug.LogError("[MemoryGameManager] Sprite’lar eksik! Grid oluşturulamıyor.");
+            return;
+        }
+
+        SetupGrid();
     }
-
-    if (_cardBackSprite == null || _faceSprites.Count == 0)
-    {
-        Debug.LogError("[MemoryGameManager] Sprite’lar eksik!");
-        return;
-    }
-
-    SetupGrid();
-}
-
 
     // --- 2. OYUN KURULUMU ---
     private void SetupGrid()
@@ -82,10 +92,14 @@ public class MemoryGameManager : BaseGameManager
         List<Sprite> deck = new List<Sprite>();
         foreach (Sprite s in _faceSprites)
         {
-            deck.Add(s);
-            deck.Add(s);
+            // Emniyet: Liste oluşturulurken sprite silinmiş mi?
+            if (s != null) 
+            {
+                deck.Add(s);
+                deck.Add(s);
+            }
         }
-        _totalPairs = _faceSprites.Count;
+        _totalPairs = deck.Count / 2; // Face count değil, deck count yarısı daha güvenli
 
         // Karıştır
         for (int i = 0; i < deck.Count; i++)
@@ -99,19 +113,27 @@ public class MemoryGameManager : BaseGameManager
         // Diz
         foreach (Sprite s in deck)
         {
+            // EMNİYET 3: MissingReferenceException Engelleyici
+            if (s == null) 
+            {
+                Debug.LogWarning("Bir sprite kayıp, kart atlanıyor.");
+                continue;
+            }
+
             MemoryCard card = Instantiate(_cardPrefab, _gridContainer);
-            int cardId = s.name.GetHashCode();
+            
+            // İsme erişmeden önce null check yaptık, güvenli.
+            int cardId = s.name.GetHashCode(); 
+            
             card.Setup(cardId, s, _cardBackSprite, OnCardSelected);
         }
     }
 
-    // --- 3. OYUN MANTIĞI (STANDART) ---
+    // --- 3. OYUN MANTIĞI ---
     private void OnCardSelected(MemoryCard clickedCard)
     {
         if (_inputLocked) return;
-
-        // Ses çal (SoundManager varsa)
-        // SoundManager.Instance?.PlayClick();
+        if (clickedCard == _firstCard) return; // Kendine tıklamayı önle
 
         clickedCard.FlipOpen();
 
@@ -122,15 +144,21 @@ public class MemoryGameManager : BaseGameManager
         else
         {
             _secondCard = clickedCard;
-            _inputLocked = true; // Diğer tıklamaları engelle
+            _inputLocked = true; 
             StartCoroutine(CheckMatch());
         }
     }
 
     private IEnumerator CheckMatch()
     {
-        // Kartlar görünsün diye 1 saniye bekle
         yield return new WaitForSeconds(1.0f);
+
+        // Kartlar yok olduysa (sahne değişimi vb) hata vermesin
+        if (_firstCard == null || _secondCard == null) 
+        {
+             _inputLocked = false;
+             yield break;
+        }
 
         if (_firstCard.CardID == _secondCard.CardID)
         {
@@ -138,91 +166,65 @@ public class MemoryGameManager : BaseGameManager
             _matchesFound++;
             _firstCard.SetMatched();
             _secondCard.SetMatched();
-            
-            // SoundManager.Instance?.PlayMatch();
 
             if (_matchesFound >= _totalPairs)
             {
-                Debug.Log("OYUN BİTTİ!");
-                // SoundManager.Instance?.PlayVictory();
-                
-                // 2 saniye sonra sistemi bitir
+                Debug.Log("OYUN BİTTİ! Harika!");
                 yield return new WaitForSeconds(2.0f);
+                
+                // BaseGameManager'daki bitiş fonksiyonu
                 GameCompleted(); 
             }
         }
         else
         {
-            // Hata!
+            // Hata
             _firstCard.FlipBack();
             _secondCard.FlipBack();
-            // SoundManager.Instance?.PlayMismatch();
         }
 
-        // Sıfırla
         _firstCard = null;
         _secondCard = null;
         _inputLocked = false;
     }
 
+    // --- 4. ASSET SET (ESKİ SİSTEM DESTEĞİ) ---
     protected override async Task ApplyAssetSet(AssetSetDto assetSet)
-{
-    // Temizlik
-    foreach (Transform child in _gridContainer) Destroy(child.gameObject);
-    _matchesFound = 0;
-    _faceSprites.Clear();
-    _inputLocked = false;
-
-    if (assetSet == null)
     {
-        Debug.LogError("[MemoryGameManager] AssetSet null!");
-        return;
-    }
+        foreach (Transform child in _gridContainer) Destroy(child.gameObject);
+        _matchesFound = 0;
+        _faceSprites.Clear();
+        _inputLocked = false;
 
-    // AssetLoader garanti
-    if (AssetLoader.Instance == null)
-    {
-        Debug.LogError("[MemoryGameManager] AssetLoader.Instance yok! Scene'e AssetLoader objesi koy.");
-        return;
-    }
+        if (assetSet == null || AssetLoader.Instance == null) return;
 
-    // BACK
-    _cardBackSprite = null;
-    if (!string.IsNullOrEmpty(assetSet.cardBackUrl))
-    {
-        _cardBackSprite = await AssetLoader.Instance.GetSpriteAsync(assetSet.cardBackUrl, "card_back.png");
-    }
-
-    // FACES
-    if (assetSet.items != null)
-    {
-        for (int i = 0; i < assetSet.items.Count; i++)
+        // BACK
+        _cardBackSprite = null;
+        if (!string.IsNullOrEmpty(assetSet.cardBackUrl))
         {
-            var url = assetSet.items[i].imageUrl;
-            if (string.IsNullOrEmpty(url)) continue;
+            _cardBackSprite = await AssetLoader.Instance.GetSpriteAsync(assetSet.cardBackUrl, "card_back.png");
+        }
 
-            var sp = await AssetLoader.Instance.GetSpriteAsync(url, $"face_{i}.png");
-            if (sp != null)
+        // FACES
+        if (assetSet.items != null)
+        {
+            for (int i = 0; i < assetSet.items.Count; i++)
             {
-                sp.name = $"face_{i}";
-                _faceSprites.Add(sp);
+                var url = assetSet.items[i].imageUrl;
+                if (string.IsNullOrEmpty(url)) continue;
+
+                var sp = await AssetLoader.Instance.GetSpriteAsync(url, $"face_{i}.png");
+                if (sp != null)
+                {
+                    sp.name = $"face_{i}"; // İsim atama önemli
+                    _faceSprites.Add(sp);
+                }
             }
         }
+
+        if (_cardBackSprite != null && _faceSprites.Count > 0)
+        {
+            SetupGrid();
+        }
     }
-
-    if (_cardBackSprite == null)
-    {
-        Debug.LogError("[MemoryGameManager] CardBack yüklenmedi!");
-        return;
-    }
-
-    if (_faceSprites.Count == 0)
-    {
-        Debug.LogError("[MemoryGameManager] Face sprite yok!");
-        return;
-    }
-
-    SetupGrid();
-}
-
 }

@@ -2,8 +2,10 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro; // <-- BUNU EKLEMEYİ UNUTMA (Yazı için gerekli)
 using GraduationProject.Managers;
 using GraduationProject.Models;
+using GraduationProject.Utilities;
 
 namespace GraduationProject.Controllers
 {
@@ -12,7 +14,11 @@ namespace GraduationProject.Controllers
         [Header("UI Referansları")]
         public ScrollRect scrollView;
 
-        // SESSİZ HARFLER (ID sırası: B=1, C=2... T=17 ...)
+        [Header("Bildirim Ayarları")]
+        public GameObject notificationBadge;       // Kırmızı Dairenin Kendisi
+        public TextMeshProUGUI notificationText;   // Dairenin içindeki Yazı (Sayı)
+
+        // SESSİZ HARFLER
         private readonly string[] _orderedConsonants = new string[]
         {
             "B", "C", "Ç", "D", "F", "G", "H", "J", "K", "L",
@@ -29,63 +35,49 @@ namespace GraduationProject.Controllers
                 scrollView.verticalNormalizedPosition = 0f;
             }
 
-            if (APIManager.Instance == null)
+            if (APIManager.Instance == null || GameContext.PlayerId <= 0)
             {
-                Debug.LogWarning("[SelectionController] APIManager.Instance yok. Sadece buton mapping çalıştı.");
+                Debug.LogWarning("[SelectionController] API veya PlayerId eksik.");
                 return;
             }
 
-            // PlayerId yoksa API çağırma (ama butonlar yine görünür)
-            if (GraduationProject.Utilities.GameContext.PlayerId <= 0)
-            {
-                Debug.LogWarning("[SelectionController] PlayerId yok. Task çekilmedi.");
-                return;
-            }
+            // Görevleri Çek
+            List<TaskItem> tasks = await APIManager.Instance.GetTasksAsync(GameContext.PlayerId);
 
-            List<TaskItem> tasks = await APIManager.Instance.GetTasksAsync(GraduationProject.Utilities.GameContext.PlayerId);
-            if (tasks != null) UpdateButtonsVisuals(tasks);
+            if (tasks != null)
+            {
+                UpdateButtonsVisuals(tasks);
+
+                // DİNAMİK SAYAÇ FONKSİYONU
+                UpdateNotificationCount(tasks);
+            }
         }
 
         private void AutoMapLevelButtons()
         {
-            // Unity 6: FindObjectsByType önerilir
             var allButtons = Object.FindObjectsByType<LevelIdentifier>(FindObjectsSortMode.None);
-
             foreach (var btn in allButtons)
             {
                 string objName = btn.gameObject.name;
+                if (!objName.Contains("_")) continue;
 
-                if (!objName.Contains("_"))
-                {
-                    Debug.LogWarning($"[AutoMap] '{objName}' format yanlış. Beklenen: Level_X (örn Level_T)");
-                    continue;
-                }
-
-                string letterFromObj = objName.Split('_')[1]; // "T" vs.
-
+                string letterFromObj = objName.Split('_')[1];
                 int index = System.Array.IndexOf(_orderedConsonants, letterFromObj);
-                if (index == -1)
+
+                if (index != -1)
                 {
-                    Debug.LogError($"[AutoMap] '{objName}' içindeki '{letterFromObj}' listede yok!");
-                    continue;
+                    btn.levelID = index + 1;
+                    btn.letterCode = letterFromObj;
+                    if (btn.letterText != null) btn.letterText.text = letterFromObj;
                 }
-
-                btn.levelID = index + 1;
-                btn.letterCode = letterFromObj;
-
-                if (btn.letterText != null)
-                    btn.letterText.text = letterFromObj;
             }
         }
 
         private void UpdateButtonsVisuals(List<TaskItem> tasks)
         {
             var allButtons = Object.FindObjectsByType<LevelIdentifier>(FindObjectsSortMode.None);
-
             foreach (var task in tasks)
             {
-                // Senin backend’de LetterId yerine TaskId kullanıyorsan burası öyle kalır.
-                // Eğer backend letterId dönüyorsa: x.levelID == task.LetterId şeklinde değiştir.
                 var targetBtn = allButtons.FirstOrDefault(x => x.levelID == task.TaskId);
                 if (targetBtn != null) ApplyButtonStatus(targetBtn, task);
             }
@@ -102,19 +94,52 @@ namespace GraduationProject.Controllers
                     if (btn.lockImage) btn.lockImage.SetActive(false);
                     btn.myButton.interactable = true;
                     break;
-
                 case "Assigned":
                     if (btn.myImage) btn.myImage.color = Color.yellow;
                     if (btn.lockImage) btn.lockImage.SetActive(false);
                     btn.myButton.interactable = true;
                     break;
-
-                default: // Locked
+                default:
                     if (btn.myImage) btn.myImage.color = Color.gray;
                     if (btn.lockImage) btn.lockImage.SetActive(true);
                     btn.myButton.interactable = false;
                     break;
             }
+        }
+
+        // --- YENİ DİNAMİK SAYAÇ KODU ---
+        private void UpdateNotificationCount(List<TaskItem> tasks)
+        {
+            if (notificationBadge == null) return;
+
+            // 1. Sadece "Assigned" (Yeni) olanları say
+            int newCount = tasks.Count(t => t.Status == "Assigned");
+
+            Debug.Log($"[SelectionController] Yeni Bildirim Sayısı: {newCount}");
+
+            if (newCount > 0)
+            {
+                // Bildirim varsa rozeti aç
+                notificationBadge.SetActive(true);
+
+                // Sayıyı yazdır
+                if (notificationText != null)
+                {
+                    notificationText.text = newCount.ToString();
+                }
+            }
+            else
+            {
+                // Bildirim yoksa (0 ise) rozeti kapat
+                notificationBadge.SetActive(false);
+            }
+        }
+
+
+        // SelectionController.cs içine ekle:
+        public void BildirimSayfasiniAc()
+        {
+            UnityEngine.SceneManagement.SceneManager.LoadScene("NotificationScene");
         }
     }
 }
