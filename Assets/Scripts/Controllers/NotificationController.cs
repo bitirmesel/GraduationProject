@@ -1,164 +1,118 @@
-using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using GraduationProject.Managers;
 using GraduationProject.Models;
 using GraduationProject.Utilities;
+using Newtonsoft.Json; // Eğer proje Newtonsoft kullanıyorsa debug için harika olur
 
 namespace GraduationProject.Controllers
 {
     public class NotificationController : MonoBehaviour
     {
-        private TMP_Text _txtTitle;
-        private TMP_Text _txtSubtitle;
-        private TMP_Text _txtEmpty;
-        private TMP_Text _txtTaskBody;
-        private Button   _btnRefresh;
+        [Header("Geliştirici Ayarları")]
+        [SerializeField] private int _debugPlayerId = 3;
 
-        private const string NAME_TXT_TITLE     = "Txt_Title";
-        private const string NAME_TXT_SUBTITLE  = "Txt_Subtitle";
-        private const string NAME_TXT_EMPTY     = "Txt_Empty";
-        private const string NAME_TXT_TASK_BODY = "Txt_TaskBody";
-        private const string NAME_BTN_REFRESH   = "Btn_Refresh";
+        [Header("Panel Yönetimi")]
+        public GameObject activeTaskPanel;
+        public GameObject emptyStatePanel;
 
-        private void Awake()
-        {
-            _txtTitle    = transform.GetComponentInDeepChild<TMP_Text>(NAME_TXT_TITLE);
-            _txtSubtitle = transform.GetComponentInDeepChild<TMP_Text>(NAME_TXT_SUBTITLE);
-            _txtEmpty    = transform.GetComponentInDeepChild<TMP_Text>(NAME_TXT_EMPTY);
-            _txtTaskBody = transform.GetComponentInDeepChild<TMP_Text>(NAME_TXT_TASK_BODY);
-            _btnRefresh  = transform.GetComponentInDeepChild<Button>(NAME_BTN_REFRESH);
-        }
+        [Header("İçerik Referansları")]
+        public TextMeshProUGUI notificationText;
+        public Button actionButton;
+
+        private int _targetLevelId = 0;
 
         private async void Start()
         {
-            if (_txtTitle != null)
-                _txtTitle.text = "Bugünkü Görevlerin";
-
-            if (_txtSubtitle != null)
-                _txtSubtitle.text = "Terapistinin senin için seçtiği oyunlar";
-
-            if (_btnRefresh != null)
-                _btnRefresh.onClick.AddListener(() => { _ = RefreshTasksAsync(); });
-
+            if (actionButton != null)
+            {
+                actionButton.onClick.RemoveAllListeners();
+                actionButton.onClick.AddListener(OnActionClick);
+            }
             await RefreshTasksAsync();
         }
 
-        private async Task RefreshTasksAsync()
+        public async Task RefreshTasksAsync()
         {
-            // 1) APIManager var mı?
-            if (APIManager.Instance == null)
+            long currentId = GameContext.PlayerId;
+
+            // Debug modu veya Login kontrolü
+            if (currentId <= 0)
             {
-                Debug.LogError("[Notification] APIManager.Instance = null! " +
-                               "Bu sahneyi doğrudan çalıştırıyorsun. " +
-                               "Oyunu LoginScene'den başlat veya sahneye APIManager ekle.");
-                ShowNoTask("Sunucuya bağlanırken hata oluştu.");
-                return;
+#if UNITY_EDITOR
+                currentId = _debugPlayerId;
+#else
+                ShowEmptyState(); return;
+#endif
             }
 
-            // 2) PlayerId set edilmiş mi?
-            if (GameContext.PlayerId <= 0)
+            if (APIManager.Instance == null) { ShowEmptyState(); return; }
+
+            // Verileri Çek
+            var tasks = await APIManager.Instance.GetTasksAsync(currentId);
+
+            if (tasks != null && tasks.Count > 0)
             {
-                Debug.LogWarning("[Notification] GameContext.PlayerId set edilmemiş.");
-                ShowNoTask("Önce giriş yapmalısın.");
-                return;
-            }
+                // --- DÜZELTME 1: "ASSIGNED" HEPSİ BÜYÜK HARF OLMALI ---
+                // API'den "ASSIGNED" geliyor, C# string karşılaştırması hassastır.
+                var newTasks = tasks.FindAll(t => t.status == "ASSIGNED");
 
-            SetLoadingState(true);
+                if (newTasks.Count > 0)
+                {
+                    var priorityTask = newTasks[0];
+                    _targetLevelId = priorityTask.taskId;
 
-            long playerId = GameContext.PlayerId;
+                    string fullText = "<size=120%><b>Bugünün Görevleri</b></size>\n\n";
 
-            // TÜM GÖREVLERİ ÇEK
-            List<PlayerTaskDto> tasks = await APIManager.Instance.GetAllTasksForPlayer(playerId);
+                    foreach (var task in newTasks)
+                    {
+                        // --- DÜZELTME 2: YENİ DEĞİŞKEN İSİMLERİ ---
+                        // letter -> letterCode
+                        // description -> gameName + note
 
-            // Loading bitti
-            SetLoadingState(false);
+                        string letterVal = string.IsNullOrEmpty(task.letterCode) ? "?" : task.letterCode;
 
-            if (tasks == null)
-            {
-                ShowNoTask("Sunucuya bağlanırken hata oluştu.");
-                return;
-            }
+                        string descVal = task.gameName;
+                        if (!string.IsNullOrEmpty(task.note)) descVal += $" ({task.note})";
 
-            if (tasks.Count == 0)
-            {
-                ShowNoTask("Henüz atanmış görevin yok.");
-                return;
-            }
+                        // Ekrana Yazdır
+                        fullText += $"<color=#FFA500>●</color> <b>Harf '{letterVal}'</b> : {descVal}\n\n";
+                    }
 
-            // İstersen sadece ASSIGNED olanları göster
-            var sb = new StringBuilder();
+                    if (notificationText != null) notificationText.text = fullText;
 
-            foreach (var t in tasks)
-            {
-                // Burada status filtresi istersen:
-                // if (t.status != "ASSIGNED") continue;
-
-                string letter   = string.IsNullOrEmpty(t.letterCode) ? "?"        : t.letterCode;
-                string gameName = string.IsNullOrEmpty(t.gameName)  ? "bir oyun" : t.gameName;
-
-                sb.AppendLine($"• Harf '{letter}' için {gameName} oynayacaksın.");
-
-                if (!string.IsNullOrEmpty(t.note))
-                    sb.AppendLine($"  Not: {t.note}");
-
-                sb.AppendLine(); // araya boş satır
-            }
-
-            string body = sb.ToString().Trim();
-            if (string.IsNullOrEmpty(body))
-            {
-                ShowNoTask("Henüz atanmış görevin yok.");
+                    if (activeTaskPanel != null) activeTaskPanel.SetActive(true);
+                    if (emptyStatePanel != null) emptyStatePanel.SetActive(false);
+                }
+                else
+                {
+                    // Görev var ama hepsi tamamlanmışsa
+                    ShowEmptyState();
+                }
             }
             else
             {
-                ShowTask(body);
+                ShowEmptyState();
             }
         }
 
-        private void SetLoadingState(bool isLoading)
+        // ... (ShowEmptyState ve OnActionClick fonksiyonları aynen kalacak) ...
+        private void ShowEmptyState()
         {
-            if (_txtEmpty == null || _txtTaskBody == null)
-                return;
-
-            if (isLoading)
-            {
-                _txtEmpty.text = "Görevler yükleniyor...";
-                _txtEmpty.gameObject.SetActive(true);
-                _txtTaskBody.gameObject.SetActive(false);
-            }
-            else
-            {
-                // Yükleme bittiyse, burada ekstra bir şey yapmıyoruz
-                // asıl görünürlüğü ShowNoTask / ShowTask belirliyor
-            }
+            if (activeTaskPanel != null) activeTaskPanel.SetActive(false);
+            if (emptyStatePanel != null) emptyStatePanel.SetActive(true);
         }
 
-        private void ShowNoTask(string message)
+        private void OnActionClick()
         {
-            if (_txtEmpty != null)
-            {
-                _txtEmpty.text = message;
-                _txtEmpty.gameObject.SetActive(true);
-            }
+            // ID göndermiyoruz, sadece "Modu Aç" diyoruz.
+            // Çünkü SelectionScene zaten görevleri API'den çekip hangileri olduğunu bilecek.
 
-            if (_txtTaskBody != null)
-                _txtTaskBody.gameObject.SetActive(false);
-        }
-
-        private void ShowTask(string body)
-        {
-            if (_txtTaskBody != null)
-            {
-                _txtTaskBody.text = body;
-                _txtTaskBody.gameObject.SetActive(true);
-            }
-
-            if (_txtEmpty != null)
-                _txtEmpty.gameObject.SetActive(false);
+            GameContext.IsFocusMode = true;
+            UnityEngine.SceneManagement.SceneManager.LoadScene("SelectionScene");
         }
     }
 }

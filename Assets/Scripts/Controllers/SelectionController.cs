@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro; // <-- BUNU EKLEMEYİ UNUTMA (Yazı için gerekli)
+using TMPro;
 using GraduationProject.Managers;
 using GraduationProject.Models;
 using GraduationProject.Utilities;
@@ -15,10 +15,9 @@ namespace GraduationProject.Controllers
         public ScrollRect scrollView;
 
         [Header("Bildirim Ayarları")]
-        public GameObject notificationBadge;       // Kırmızı Dairenin Kendisi
-        public TextMeshProUGUI notificationText;   // Dairenin içindeki Yazı (Sayı)
+        public GameObject notificationBadge;
+        public TextMeshProUGUI notificationText;
 
-        // SESSİZ HARFLER
         private readonly string[] _orderedConsonants = new string[]
         {
             "B", "C", "Ç", "D", "F", "G", "H", "J", "K", "L",
@@ -27,6 +26,7 @@ namespace GraduationProject.Controllers
 
         private async void Start()
         {
+            // 1. Önce her şeyi aç (Varsayılan durum)
             AutoMapLevelButtons();
 
             if (scrollView != null)
@@ -35,21 +35,29 @@ namespace GraduationProject.Controllers
                 scrollView.verticalNormalizedPosition = 0f;
             }
 
-            if (APIManager.Instance == null || GameContext.PlayerId <= 0)
-            {
-                Debug.LogWarning("[SelectionController] API veya PlayerId eksik.");
-                return;
-            }
+            if (APIManager.Instance == null) return;
+            long pId = GameContext.PlayerId;
+            if (pId <= 0) return;
 
-            // Görevleri Çek
-            List<TaskItem> tasks = await APIManager.Instance.GetTasksAsync(GameContext.PlayerId);
+            // 2. Verileri Çek
+            List<TaskItem> tasks = await APIManager.Instance.GetTasksAsync(pId);
 
             if (tasks != null)
             {
+                // Renkleri boya (Yeşil/Sarı)
                 UpdateButtonsVisuals(tasks);
-
-                // DİNAMİK SAYAÇ FONKSİYONU
                 UpdateNotificationCount(tasks);
+
+                // 3. ODAKLANMA MODU KONTROLÜ
+                // Eğer Notification'dan geldiysek, görevi olmayanları kapat!
+                if (GameContext.IsFocusMode)
+                {
+                    Debug.Log("[Selection] Odaklanma Modu Aktif: Sadece ödevler açık kalacak.");
+                    FilterTasksOnly(tasks);
+
+                    // Modu kapat ki bir dahaki girişte normal açılsın
+                    GameContext.IsFocusMode = false;
+                }
             }
         }
 
@@ -67,8 +75,13 @@ namespace GraduationProject.Controllers
                 if (index != -1)
                 {
                     btn.levelID = index + 1;
-                    btn.letterCode = letterFromObj;
+                    btn.letterCode = letterFromObj; // Örn: "D", "C"
                     if (btn.letterText != null) btn.letterText.text = letterFromObj;
+
+                    // Herkesi aktif başlat
+                    if (btn.myButton) btn.myButton.interactable = true;
+                    if (btn.lockImage) btn.lockImage.SetActive(false);
+                    if (btn.myImage) btn.myImage.color = Color.white;
                 }
             }
         }
@@ -76,70 +89,80 @@ namespace GraduationProject.Controllers
         private void UpdateButtonsVisuals(List<TaskItem> tasks)
         {
             var allButtons = Object.FindObjectsByType<LevelIdentifier>(FindObjectsSortMode.None);
-            foreach (var task in tasks)
+
+            // "ASSIGNED" olanları SARI yap
+            foreach (var task in tasks.Where(t => t.status == "ASSIGNED"))
             {
-                var targetBtn = allButtons.FirstOrDefault(x => x.levelID == task.TaskId);
-                if (targetBtn != null) ApplyButtonStatus(targetBtn, task);
+                // Harf koduna göre butonu bul (ID yerine LetterCode daha güvenli)
+                var btn = allButtons.FirstOrDefault(b => b.letterCode == task.letterCode);
+                if (btn != null && btn.myImage) btn.myImage.color = Color.yellow;
+            }
+
+            // "COMPLETED" olanları YEŞİL yap
+            foreach (var task in tasks.Where(t => t.status == "COMPLETED"))
+            {
+                var btn = allButtons.FirstOrDefault(b => b.letterCode == task.letterCode);
+                if (btn != null && btn.myImage) btn.myImage.color = Color.green;
             }
         }
 
-        private void ApplyButtonStatus(LevelIdentifier btn, TaskItem task)
+        // --- YENİ FİLTRELEME FONKSİYONU ---
+        private void FilterTasksOnly(List<TaskItem> tasks)
         {
-            if (btn.myButton == null) return;
+            var allButtons = Object.FindObjectsByType<LevelIdentifier>(FindObjectsSortMode.None);
 
-            switch (task.Status)
+            // Hangi harflerin görevi var? (Listesini çıkar)
+            // Sadece "ASSIGNED" (Ödev) olanları aktif tutmak istiyorsan:
+            var activeLetters = tasks
+                .Where(t => t.status == "ASSIGNED")
+                .Select(t => t.letterCode)
+                .ToList();
+
+            foreach (var btn in allButtons)
             {
-                case "Completed":
-                    if (btn.myImage) btn.myImage.color = Color.green;
-                    if (btn.lockImage) btn.lockImage.SetActive(false);
-                    btn.myButton.interactable = true;
-                    break;
-                case "Assigned":
-                    if (btn.myImage) btn.myImage.color = Color.yellow;
-                    if (btn.lockImage) btn.lockImage.SetActive(false);
-                    btn.myButton.interactable = true;
-                    break;
-                default:
-                    if (btn.myImage) btn.myImage.color = Color.gray;
-                    if (btn.lockImage) btn.lockImage.SetActive(true);
-                    btn.myButton.interactable = false;
-                    break;
+                // Eğer butonun harfi, aktif listemizde YOKSA -> KİLİTLE
+                if (!activeLetters.Contains(btn.letterCode))
+                {
+                    if (btn.myButton) btn.myButton.interactable = false; // Tıklamayı kapat
+
+                    // Rengi soldur (Gri ve Şeffaf)
+                    if (btn.myImage)
+                    {
+                        var col = btn.myImage.color;
+                        col.a = 0.2f;
+                        btn.myImage.color = Color.gray;
+                    }
+                }
+                else
+                {
+                    // Listede varsa zaten UpdateButtonsVisuals onu Sarı yapmıştı, dokunma.
+                    Debug.Log($"[Focus] Açık kalan harf: {btn.letterCode}");
+                }
             }
         }
 
-        // --- YENİ DİNAMİK SAYAÇ KODU ---
         private void UpdateNotificationCount(List<TaskItem> tasks)
         {
             if (notificationBadge == null) return;
-
-            // 1. Sadece "Assigned" (Yeni) olanları say
-            int newCount = tasks.Count(t => t.Status == "Assigned");
-
-            Debug.Log($"[SelectionController] Yeni Bildirim Sayısı: {newCount}");
+            // API'den "ASSIGNED" geliyor, dikkat!
+            int newCount = tasks.Count(t => t.status == "ASSIGNED");
 
             if (newCount > 0)
             {
-                // Bildirim varsa rozeti aç
                 notificationBadge.SetActive(true);
-
-                // Sayıyı yazdır
-                if (notificationText != null)
-                {
-                    notificationText.text = newCount.ToString();
-                }
+                if (notificationText != null) notificationText.text = newCount.ToString();
             }
             else
             {
-                // Bildirim yoksa (0 ise) rozeti kapat
                 notificationBadge.SetActive(false);
             }
         }
 
-
-        // SelectionController.cs içine ekle:
+        // --- BU FONKSİYON EKSİKTİ, BUNU EKLE ---
         public void BildirimSayfasiniAc()
         {
             UnityEngine.SceneManagement.SceneManager.LoadScene("NotificationScene");
         }
     }
+
 }

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
 using Newtonsoft.Json;
-using GraduationProject.Models; // GameAssetConfig burada olmalı
+using GraduationProject.Models;
 
 namespace GraduationProject.Managers
 {
@@ -63,86 +63,52 @@ namespace GraduationProject.Managers
         }
 
         // ─────────────────────────────────────────────────────
-        //  GET TASKS (Harita için Mock Data)
+        //  GET TASKS (ARTIK GERÇEK API'DEN ÇEKİYOR)
         // ─────────────────────────────────────────────────────
         public async Task<List<TaskItem>> GetTasksAsync(long playerId)
         {
-            await Task.Delay(100);
-
-            List<TaskItem> mockTasks = new List<TaskItem>();
-            string[] sessizHarfler = { "B", "C", "Ç", "D", "F", "G", "Ğ", "H", "J", "K", "L", "M", "N", "P", "R", "S", "Ş", "T", "V", "Y", "Z" };
-
-            for (int i = 0; i < sessizHarfler.Length; i++)
-            {
-                mockTasks.Add(new TaskItem
-                {
-                    TaskId = i + 1,
-                    LetterCode = sessizHarfler[i],
-                    Status = (i < 2) ? "Completed" : (i == 2 ? "Assigned" : "Locked"),
-                    GameType = 1
-                });
-            }
-            return mockTasks;
-        }
-
-        public async Task<User> TherapistLoginAsync(string email, string password)
-        {
-            string url = $"{_baseUrl}/api/auth/login";
-
-            var requestData = new LoginRequestDTO
-            {
-                Username = email,
-                Password = password
-            };
-
-            string jsonBody = JsonConvert.SerializeObject(requestData);
-            string response = await SendPostRequest(url, jsonBody, requiresAuth: false);
-
-            if (string.IsNullOrEmpty(response))
-                return null;
-
-            var user = JsonConvert.DeserializeObject<User>(response);
-            if (user != null && !string.IsNullOrEmpty(user.Token))
-            {
-                _jwtToken = user.Token;
-            }
-
-            return user;
-        }
-
-        public async Task<List<PlayerTaskDto>> GetAllTasksForPlayer(long playerId)
-        {
+            // 1. URL'i oluştur
             string url = $"{_baseUrl}/api/players/{playerId}/tasks";
-            string json = await SendGetRequest(url, requiresAuth: false);
 
-            if (string.IsNullOrEmpty(json))
-                return null;
-
-            return JsonConvert.DeserializeObject<List<PlayerTaskDto>>(json);
-        }
-
-        // ---------------------------------------------------------
-        //  [NEW] ASSET CONFIGURATION (Resim Listesini Çeken Yer)
-        // ---------------------------------------------------------
-        public async Task<GameAssetConfig> GetGameConfigAsync(long gameId, long letterId)
-        {
-            // Backend'de tanımladığımız endpoint: api/gameconfig/{gameId}/{letterId}
-            string url = $"{_baseUrl}/api/gameconfig/{gameId}/{letterId}";
-
-            // Şu anlık requiresAuth: false yaptık. İlerde token gerekirse true yaparsın.
+            // 2. İsteği Gönder
             string json = await SendGetRequest(url, requiresAuth: false);
 
             if (string.IsNullOrEmpty(json))
             {
-                Debug.LogError($"[APIManager] GameConfig alınamadı. URL: {url}");
+                Debug.LogWarning("[APIManager] Görev verisi boş geldi veya hata oluştu.");
                 return null;
             }
+
+            // Hata ayıklama için gelen JSON'ı görelim (Harf '?' sorunu olursa buraya bakarız)
+            Debug.Log($"[APIManager] GetTasks JSON: {json}");
 
             try
             {
-                // JSON'ı bizim oluşturduğumuz GameAssetConfig modeline çevir
-                var config = JsonConvert.DeserializeObject<GameAssetConfig>(json);
-                return config;
+                // 3. JSON'ı Listeye Çevir
+                // NOT: TaskItem.cs dosyasındaki değişken adları (taskId, letter, description) 
+                // JSON ile birebir aynı olduğu için otomatik eşleşecektir.
+                var tasks = JsonConvert.DeserializeObject<List<TaskItem>>(json);
+
+                return tasks;
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError("[APIManager] Task listesi parse edilemedi: " + ex.Message);
+                return null;
+            }
+        }
+
+        // -------------------- ASSET & CONFIG --------------------
+        public async Task<GameAssetConfig> GetGameConfigAsync(long gameId, long letterId)
+        {
+            string url = $"{_baseUrl}/api/gameconfig/{gameId}/{letterId}";
+            string json = await SendGetRequest(url, requiresAuth: false);
+
+            if (string.IsNullOrEmpty(json)) return null;
+
+            try
+            {
+                return JsonConvert.DeserializeObject<GameAssetConfig>(json);
             }
             catch (System.Exception ex)
             {
@@ -151,7 +117,40 @@ namespace GraduationProject.Managers
             }
         }
 
-        // -------------------- HELPERS --------------------
+        public async Task<AssetSetDto> GetAssetSetAsync(long letterId, string gameType, int difficulty)
+        {
+            string url = $"{_baseUrl}/api/assets/sets?letterId={letterId}&gameType={gameType}&difficulty={difficulty}";
+
+            string json = await SendGetRequest(url, requiresAuth: false);
+            if (string.IsNullOrEmpty(json)) return null;
+
+            try
+            {
+                return JsonConvert.DeserializeObject<AssetSetDto>(json);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError("[APIManager] GetAssetSetAsync parse hatası: " + ex);
+                return null;
+            }
+        }
+
+        // -------------------- THERAPIST & HELPERS --------------------
+        public async Task<User> TherapistLoginAsync(string email, string password)
+        {
+            string url = $"{_baseUrl}/api/auth/login";
+            var requestData = new LoginRequestDTO { Username = email, Password = password };
+            string jsonBody = JsonConvert.SerializeObject(requestData);
+            string response = await SendPostRequest(url, jsonBody, requiresAuth: false);
+
+            if (string.IsNullOrEmpty(response)) return null;
+
+            var user = JsonConvert.DeserializeObject<User>(response);
+            if (user != null && !string.IsNullOrEmpty(user.Token)) _jwtToken = user.Token;
+
+            return user;
+        }
+
         private async Task<string> SendPostRequest(string url, string jsonBody, bool requiresAuth)
         {
             using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
@@ -212,27 +211,5 @@ namespace GraduationProject.Managers
                 }
             }
         }
-
-        public async Task<AssetSetDto> GetAssetSetAsync(long letterId, string gameType, int difficulty)
-        {
-            string url = $"{_baseUrl}/api/assets/sets?letterId={letterId}&gameType={gameType}&difficulty={difficulty}";
-
-            string json = await SendGetRequest(url, requiresAuth: false);
-            if (string.IsNullOrEmpty(json))
-                return null;
-
-            try
-            {
-                return JsonConvert.DeserializeObject<AssetSetDto>(json);
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogError("[APIManager] GetAssetSetAsync parse hatası: " + ex);
-                Debug.Log("[API] AssetSet URL => " + url);
-
-                return null;
-            }
-        }
-
     }
 }

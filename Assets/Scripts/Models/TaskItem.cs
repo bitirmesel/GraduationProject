@@ -1,14 +1,21 @@
 using System;
-using Newtonsoft.Json;
 
 namespace GraduationProject.Models
 {
     [Serializable]
     public class TaskItem
     {
-        [JsonProperty("task_id")] public int TaskId { get; set; }
-        [JsonProperty("letter_code")] public string LetterCode; 
-        [JsonProperty("status")] public string Status; // "Assigned", "Completed"
-        [JsonProperty("game_type")] public int GameType;
+        // Log'dan gördüğümüz gerçek JSON anahtarları:
+        // {"taskId":5, "gameName":"...", "letterCode":"D", "status":"ASSIGNED", ...}
+
+        public int taskId;
+        public string status;      // Örn: "ASSIGNED"
+        public string letterCode;  // Örn: "D"
+        public string gameName;    // Örn: "Syllable L1 - Matching"
+        public string note;        // Örn: "Haftaya görüşürüz"
+
+        // Eski kodların patlamaması için yardımcı köprüler (Opsiyonel ama güvenli)
+        public int TaskId => taskId;
+        public string Status => status;
     }
 }

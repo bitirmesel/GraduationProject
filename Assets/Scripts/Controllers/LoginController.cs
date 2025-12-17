@@ -88,6 +88,9 @@ namespace GraduationProject.Controllers
                 GameContext.PlayerId = player.PlayerId;
                 ShowFeedback($"Hoş geldin {player.Nickname}!", Color.green);
 
+                GameContext.FocusLevelId = 0; // <--- GARANTİ OLSUN DİYE SIFIRLA
+                SceneManager.LoadScene("SelectionScene");
+
                 await System.Threading.Tasks.Task.Delay(500);
 
                 // 3. HİÇ SORMADAN DİREKT HARİTAYA GİT
