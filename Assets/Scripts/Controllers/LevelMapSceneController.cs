@@ -8,55 +8,59 @@ using GraduationProject.Utilities;
 
 public class LevelMapSceneController : MonoBehaviour
 {
-    private string _currentGameType = "Syllable"; // Default Hece
+    private string _currentGameType = "Syllable"; // Default
 
+    [Header("Tab Butonları")]
     public Button btnTabSyllable;
     public Button btnTabWord;
     public Button btnTabSentence;
 
+    [Header("Zorluk Butonları")]
     public Button btnEasy;
     public Button btnMedium;
     public Button btnHard;
 
     private void Start()
     {
-        // Tab butonları
-        btnTabSyllable.onClick.AddListener(() => _currentGameType = "Syllable");
-        btnTabWord.onClick.AddListener(() => _currentGameType = "Word");
-        btnTabSentence.onClick.AddListener(() => _currentGameType = "Sentence");
+        if (btnTabSyllable != null) btnTabSyllable.onClick.AddListener(() => SelectTab("Syllable"));
+        if (btnTabWord != null) btnTabWord.onClick.AddListener(() => SelectTab("Word"));
+        if (btnTabSentence != null) btnTabSentence.onClick.AddListener(() => SelectTab("Sentence"));
 
-        // Zorluk butonları
-        btnEasy.onClick.AddListener(() => { _ = OnLevelSelected(1); });
-        btnMedium.onClick.AddListener(() => { _ = OnLevelSelected(2); });
-        btnHard.onClick.AddListener(() => { _ = OnLevelSelected(3); });
+        if (btnEasy != null) btnEasy.onClick.AddListener(() => _ = OnLevelSelected(1));
+        if (btnMedium != null) btnMedium.onClick.AddListener(() => _ = OnLevelSelected(2));
+        if (btnHard != null) btnHard.onClick.AddListener(() => _ = OnLevelSelected(3));
+    }
+
+    private void SelectTab(string gameType)
+    {
+        _currentGameType = gameType;
+        Debug.Log($"[MAP] Tab seçildi: {_currentGameType}");
     }
 
     private async Task OnLevelSelected(int difficulty)
     {
         if (APIManager.Instance == null)
         {
-            Debug.LogError("APIManager yok!");
+            Debug.LogError("[MAP] APIManager.Instance yok!");
             return;
         }
 
         long letterId = GameContext.SelectedLetterId;
         if (letterId <= 0)
         {
-            Debug.LogError("SelectedLetterId set edilmemiş!");
+            Debug.LogError("[MAP] SelectedLetterId set edilmemiş! SelectionScene’den gelmiyor.");
             return;
         }
 
-        // 1) Backend’ten asset setini çek
-        AssetSetDto assetSet = await APIManager.Instance
-            .GetAssetSetAsync(letterId, _currentGameType, difficulty);
+        Debug.Log($"[MAP] İstek => letterId={letterId}, type={_currentGameType}, diff={difficulty}");
 
+        AssetSetDto assetSet = await APIManager.Instance.GetAssetSetAsync(letterId, _currentGameType, difficulty);
         if (assetSet == null)
         {
-            Debug.LogError("Asset set alınamadı.");
+            Debug.LogError("[MAP] AssetSet gelmedi (null). Backend veya parametreler uyuşmuyor.");
             return;
         }
 
-        // 2) GameContext’e doldur
         GameContext.SelectedGameType = assetSet.gameType;
         GameContext.SelectedDifficulty = assetSet.difficulty;
         GameContext.SelectedAssetSetId = assetSet.assetSetId;
@@ -72,15 +76,13 @@ public class LevelMapSceneController : MonoBehaviour
         {
             foreach (var item in assetSet.items)
             {
-                if (!string.IsNullOrEmpty(item.imageUrl))
-                    GameContext.ImageUrls.Add(item.imageUrl);
-
-                if (!string.IsNullOrEmpty(item.audioUrl))
-                    GameContext.AudioUrls.Add(item.audioUrl);
+                if (!string.IsNullOrEmpty(item.imageUrl)) GameContext.ImageUrls.Add(item.imageUrl);
+                if (!string.IsNullOrEmpty(item.audioUrl)) GameContext.AudioUrls.Add(item.audioUrl);
             }
         }
 
-        // 3) GameScene’e geç
+        Debug.Log($"[MAP] OK => letter={GameContext.SelectedLetterCode} type={GameContext.SelectedGameType} diff={GameContext.SelectedDifficulty} images={GameContext.ImageUrls.Count}");
+
         SceneManager.LoadScene(GameConstants.SCENE_GAME);
     }
 }

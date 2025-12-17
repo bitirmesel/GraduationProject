@@ -7,8 +7,8 @@ using GraduationProject.Utilities;
 public class LevelIdentifier : MonoBehaviour
 {
     [Header("Harf Bilgisi")]
-    public int levelID;           // Biz bunu LetterId olarak kullanacağız
-    public string letterCode;     // "B", "C", "Ç"...
+    public int levelID;           // SelectedLetterId
+    public string letterCode;     // "K", "T" ...
 
     [Header("UI Referansları")]
     public Button myButton;
@@ -22,24 +22,33 @@ public class LevelIdentifier : MonoBehaviour
         if (myImage == null) myImage = GetComponent<Image>();
     }
 
+    private void OnEnable()
+    {
+        if (myButton != null)
+        {
+            myButton.onClick.RemoveListener(OnClicked);
+            myButton.onClick.AddListener(OnClicked);
+        }
+    }
+
     private void Start()
     {
         if (letterText != null && !string.IsNullOrEmpty(letterCode))
             letterText.text = letterCode;
-
-        if (myButton != null)
-            myButton.onClick.AddListener(OnClicked);
     }
 
     private void OnClicked()
-    {
-        // BU KISIM TÜM AKIŞIN BAŞLANGICI
-        GameContext.SelectedLetterId = levelID;
-        GameContext.SelectedLetterCode = letterCode;
+{
+    GameContext.SelectedLetterId = levelID;
+    GameContext.SelectedLetterCode = letterCode;
 
-        Debug.Log($"[Selection] Seçilen harf: {letterCode} (Id={levelID})");
+    GameContext.SelectedGameId = 4;        // ✅ ekle
+    GameContext.SelectedGameType = "Memory";
+    GameContext.SelectedDifficulty = 1;
 
-        // LevelMap scene'e geç
-        SceneManager.LoadScene(GameConstants.SCENE_MAP);
-    }
+    Debug.Log($"[Selection] Letter={letterCode} Id={levelID} => Memory diff=1");
+    SceneManager.LoadScene(GameConstants.SCENE_GAME);
+}
+
+
 }

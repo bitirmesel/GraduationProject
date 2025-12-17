@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using GraduationProject.Managers;
 using GraduationProject.Models;
+using GraduationProject.Utilities;
 
 public class MemoryGameManager : BaseGameManager
 {
@@ -28,33 +29,49 @@ public class MemoryGameManager : BaseGameManager
 
     // --- 1. CLOUD YÜKLEME (AYNEN KALIYOR) ---
     public override async Task InitializeGame(long letterId)
+{
+    // Temizlik
+    foreach (Transform child in _gridContainer) Destroy(child.gameObject);
+    _matchesFound = 0;
+    _faceSprites.Clear();
+    _inputLocked = false;
+
+    long gameId = GameContext.SelectedGameId; // ✅ 4
+
+    Debug.Log($"[MemoryGameManager] gameId={gameId} letterId={letterId} config çekiliyor...");
+
+    var config = await APIManager.Instance.GetGameConfigAsync(gameId, letterId);
+    if (config == null)
     {
-        // Temizlik
-        foreach (Transform child in _gridContainer) Destroy(child.gameObject);
-        _matchesFound = 0;
-        _faceSprites.Clear();
-        _inputLocked = false; // Kilidi açmayı unutma
-
-        Debug.Log($"[MemoryGameManager] Varlıklar indiriliyor... LetterID: {letterId}");
-
-        var config = await APIManager.Instance.GetGameConfigAsync(_fixedGameId, letterId);
-        
-        if (config == null) { Debug.LogError("Config hatası!"); return; }
-
-        foreach (var item in config.Items)
-        {
-            string fullUrl = config.BaseUrl + item.File;
-            Sprite sprite = await AssetLoader.Instance.GetSpriteAsync(fullUrl, item.File);
-
-            if (sprite != null)
-            {
-                if (item.Key == "background") _cardBackSprite = sprite;
-                else { sprite.name = item.Key; _faceSprites.Add(sprite); }
-            }
-        }
-
-        SetupGrid();
+        Debug.LogError("[MemoryGameManager] GameConfig gelmedi!");
+        return;
     }
+
+    // BACK + FACES
+    _cardBackSprite = null;
+    _faceSprites.Clear();
+
+    foreach (var item in config.Items)
+    {
+        string fullUrl = config.BaseUrl + item.File;
+        Sprite sprite = await AssetLoader.Instance.GetSpriteAsync(fullUrl, item.File);
+
+        if (sprite != null)
+        {
+            if (item.Key == "background") _cardBackSprite = sprite;
+            else _faceSprites.Add(sprite);
+        }
+    }
+
+    if (_cardBackSprite == null || _faceSprites.Count == 0)
+    {
+        Debug.LogError("[MemoryGameManager] Sprite’lar eksik!");
+        return;
+    }
+
+    SetupGrid();
+}
+
 
     // --- 2. OYUN KURULUMU ---
     private void SetupGrid()
@@ -147,4 +164,65 @@ public class MemoryGameManager : BaseGameManager
         _secondCard = null;
         _inputLocked = false;
     }
+
+    protected override async Task ApplyAssetSet(AssetSetDto assetSet)
+{
+    // Temizlik
+    foreach (Transform child in _gridContainer) Destroy(child.gameObject);
+    _matchesFound = 0;
+    _faceSprites.Clear();
+    _inputLocked = false;
+
+    if (assetSet == null)
+    {
+        Debug.LogError("[MemoryGameManager] AssetSet null!");
+        return;
+    }
+
+    // AssetLoader garanti
+    if (AssetLoader.Instance == null)
+    {
+        Debug.LogError("[MemoryGameManager] AssetLoader.Instance yok! Scene'e AssetLoader objesi koy.");
+        return;
+    }
+
+    // BACK
+    _cardBackSprite = null;
+    if (!string.IsNullOrEmpty(assetSet.cardBackUrl))
+    {
+        _cardBackSprite = await AssetLoader.Instance.GetSpriteAsync(assetSet.cardBackUrl, "card_back.png");
+    }
+
+    // FACES
+    if (assetSet.items != null)
+    {
+        for (int i = 0; i < assetSet.items.Count; i++)
+        {
+            var url = assetSet.items[i].imageUrl;
+            if (string.IsNullOrEmpty(url)) continue;
+
+            var sp = await AssetLoader.Instance.GetSpriteAsync(url, $"face_{i}.png");
+            if (sp != null)
+            {
+                sp.name = $"face_{i}";
+                _faceSprites.Add(sp);
+            }
+        }
+    }
+
+    if (_cardBackSprite == null)
+    {
+        Debug.LogError("[MemoryGameManager] CardBack yüklenmedi!");
+        return;
+    }
+
+    if (_faceSprites.Count == 0)
+    {
+        Debug.LogError("[MemoryGameManager] Face sprite yok!");
+        return;
+    }
+
+    SetupGrid();
+}
+
 }

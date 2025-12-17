@@ -228,6 +228,8 @@ namespace GraduationProject.Managers
             catch (System.Exception ex)
             {
                 Debug.LogError("[APIManager] GetAssetSetAsync parse hatası: " + ex);
+                Debug.Log("[API] AssetSet URL => " + url);
+
                 return null;
             }
         }
