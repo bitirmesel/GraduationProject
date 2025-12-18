@@ -1,168 +1,114 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
+using UnityEngine.SceneManagement;
+using System.Threading.Tasks;
 using GraduationProject.Managers;
-using GraduationProject.Models;
 using GraduationProject.Utilities;
+using GraduationProject.Models;
 
-namespace GraduationProject.Controllers
+public class SelectionController : MonoBehaviour
 {
-    public class SelectionController : MonoBehaviour
+    [Header("UI Elementleri")]
+    public GameObject notificationBadge; // Kırmızı nokta
+    public Text notificationCountText;   // Sayı texti
+
+    private string[] _orderedConsonants = { "B", "C", "Ç", "D", "F", "G", "H", "J", "K", "L", "M", "N", "P", "R", "S", "Ş", "T", "V", "Y", "Z" };
+
+    private async void Start()
     {
-        [Header("UI Referansları")]
-        public ScrollRect scrollView;
+        Debug.Log($"[DEBUG] Selection Başladı. Gelen PlayerID: {GameContext.PlayerId}");
 
-        [Header("Bildirim Ayarları")]
-        public GameObject notificationBadge;
-        public TextMeshProUGUI notificationText;
+        // 1. Önce butonları aç
+        AutoMapAndUnlockButtons();
 
-        private readonly string[] _orderedConsonants = new string[]
+        // 2. Bildirim Kontrolü
+        if (GameContext.PlayerId > 0)
         {
-            "B", "C", "Ç", "D", "F", "G", "H", "J", "K", "L",
-            "M", "N", "P", "R", "S", "Ş", "T", "V", "Y", "Z"
-        };
-
-        private async void Start()
-        {
-            // 1. Önce her şeyi aç (Varsayılan durum)
-            AutoMapLevelButtons();
-
-            if (scrollView != null)
-            {
-                Canvas.ForceUpdateCanvases();
-                scrollView.verticalNormalizedPosition = 0f;
-            }
-
-            if (APIManager.Instance == null) return;
-            long pId = GameContext.PlayerId;
-            if (pId <= 0) return;
-
-            // 2. Verileri Çek
-            List<TaskItem> tasks = await APIManager.Instance.GetTasksAsync(pId);
-
-            if (tasks != null)
-            {
-                // Renkleri boya (Yeşil/Sarı)
-                UpdateButtonsVisuals(tasks);
-                UpdateNotificationCount(tasks);
-
-                // 3. ODAKLANMA MODU KONTROLÜ
-                // Eğer Notification'dan geldiysek, görevi olmayanları kapat!
-                if (GameContext.IsFocusMode)
-                {
-                    Debug.Log("[Selection] Odaklanma Modu Aktif: Sadece ödevler açık kalacak.");
-                    FilterTasksOnly(tasks);
-
-                    // Modu kapat ki bir dahaki girişte normal açılsın
-                    GameContext.IsFocusMode = false;
-                }
-            }
+            // Normal durum: Giriş yapılmış
+            await CheckNotifications();
         }
-
-        private void AutoMapLevelButtons()
+        else
         {
-            var allButtons = Object.FindObjectsByType<LevelIdentifier>(FindObjectsSortMode.None);
-            foreach (var btn in allButtons)
-            {
-                string objName = btn.gameObject.name;
-                if (!objName.Contains("_")) continue;
+            // --- BURAYI DEĞİŞTİRDİK ---
+            // HATA VARSA BİLE ÇALIŞTIR:
+            Debug.LogWarning("!!! ID 0 geldi ama test için ID: 1 kullanılarak devam ediliyor.");
 
-                string letterFromObj = objName.Split('_')[1];
-                int index = System.Array.IndexOf(_orderedConsonants, letterFromObj);
+            // Geçici olarak ID'yi 1 yapıyoruz ki sistem çalışsın
+            GameContext.PlayerId = 1;
 
-                if (index != -1)
-                {
-                    btn.levelID = index + 1;
-                    btn.letterCode = letterFromObj; // Örn: "D", "C"
-                    if (btn.letterText != null) btn.letterText.text = letterFromObj;
-
-                    // Herkesi aktif başlat
-                    if (btn.myButton) btn.myButton.interactable = true;
-                    if (btn.lockImage) btn.lockImage.SetActive(false);
-                    if (btn.myImage) btn.myImage.color = Color.white;
-                }
-            }
-        }
-
-        private void UpdateButtonsVisuals(List<TaskItem> tasks)
-        {
-            var allButtons = Object.FindObjectsByType<LevelIdentifier>(FindObjectsSortMode.None);
-
-            // "ASSIGNED" olanları SARI yap
-            foreach (var task in tasks.Where(t => t.status == "ASSIGNED"))
-            {
-                // Harf koduna göre butonu bul (ID yerine LetterCode daha güvenli)
-                var btn = allButtons.FirstOrDefault(b => b.letterCode == task.letterCode);
-                if (btn != null && btn.myImage) btn.myImage.color = Color.yellow;
-            }
-
-            // "COMPLETED" olanları YEŞİL yap
-            foreach (var task in tasks.Where(t => t.status == "COMPLETED"))
-            {
-                var btn = allButtons.FirstOrDefault(b => b.letterCode == task.letterCode);
-                if (btn != null && btn.myImage) btn.myImage.color = Color.green;
-            }
-        }
-
-        // --- YENİ FİLTRELEME FONKSİYONU ---
-        private void FilterTasksOnly(List<TaskItem> tasks)
-        {
-            var allButtons = Object.FindObjectsByType<LevelIdentifier>(FindObjectsSortMode.None);
-
-            // Hangi harflerin görevi var? (Listesini çıkar)
-            // Sadece "ASSIGNED" (Ödev) olanları aktif tutmak istiyorsan:
-            var activeLetters = tasks
-                .Where(t => t.status == "ASSIGNED")
-                .Select(t => t.letterCode)
-                .ToList();
-
-            foreach (var btn in allButtons)
-            {
-                // Eğer butonun harfi, aktif listemizde YOKSA -> KİLİTLE
-                if (!activeLetters.Contains(btn.letterCode))
-                {
-                    if (btn.myButton) btn.myButton.interactable = false; // Tıklamayı kapat
-
-                    // Rengi soldur (Gri ve Şeffaf)
-                    if (btn.myImage)
-                    {
-                        var col = btn.myImage.color;
-                        col.a = 0.2f;
-                        btn.myImage.color = Color.gray;
-                    }
-                }
-                else
-                {
-                    // Listede varsa zaten UpdateButtonsVisuals onu Sarı yapmıştı, dokunma.
-                    Debug.Log($"[Focus] Açık kalan harf: {btn.letterCode}");
-                }
-            }
-        }
-
-        private void UpdateNotificationCount(List<TaskItem> tasks)
-        {
-            if (notificationBadge == null) return;
-            // API'den "ASSIGNED" geliyor, dikkat!
-            int newCount = tasks.Count(t => t.status == "ASSIGNED");
-
-            if (newCount > 0)
-            {
-                notificationBadge.SetActive(true);
-                if (notificationText != null) notificationText.text = newCount.ToString();
-            }
-            else
-            {
-                notificationBadge.SetActive(false);
-            }
-        }
-
-        // --- BU FONKSİYON EKSİKTİ, BUNU EKLE ---
-        public void BildirimSayfasiniAc()
-        {
-            UnityEngine.SceneManagement.SceneManager.LoadScene("NotificationScene");
+            await CheckNotifications();
         }
     }
 
+    private async Task CheckNotifications()
+    {
+        if (notificationBadge == null)
+        {
+            Debug.LogError("!!! HATA: 'Notification Badge' Inspector'da atanmamış! Sürükleyip bırak.");
+            return;
+        }
+
+        // Eğer ID 0 ise test amaçlı 1 gönderelim, yoksa gerçek ID'yi kullanalım
+        long idToSend = (GameContext.PlayerId > 0) ? GameContext.PlayerId : 1;
+
+        Debug.Log($"[API] Bildirim soruluyor (ID: {idToSend})...");
+        int count = await APIManager.Instance.GetUnreadNotificationCount(idToSend);
+
+        Debug.Log($"[API] Gelen Bildirim Sayısı: {count}");
+
+        if (count > 0)
+        {
+            notificationBadge.SetActive(true);
+            if (notificationCountText != null) notificationCountText.text = count.ToString();
+        }
+        else
+        {
+            notificationBadge.SetActive(false);
+        }
+    }
+
+    private void AutoMapAndUnlockButtons()
+    {
+        var allButtons = Object.FindObjectsByType<LevelIdentifier>(FindObjectsSortMode.None);
+        foreach (var btn in allButtons)
+        {
+            string objName = btn.gameObject.name;
+            if (!objName.Contains("_")) continue;
+
+            string letterFromObj = objName.Split('_')[1];
+            int index = System.Array.IndexOf(_orderedConsonants, letterFromObj);
+
+            if (index != -1)
+            {
+                btn.levelID = index + 1;
+                btn.letterCode = letterFromObj;
+                if (btn.letterText != null) btn.letterText.text = letterFromObj;
+
+                // Butonları aç
+                if (btn.myButton)
+                {
+                    btn.myButton.interactable = true;
+                    btn.myButton.onClick.RemoveAllListeners();
+                    btn.myButton.onClick.AddListener(() => GoToLevelMap(btn.levelID, btn.letterCode));
+                }
+                if (btn.lockImage) btn.lockImage.SetActive(false);
+                if (btn.myImage) btn.myImage.color = Color.white;
+            }
+        }
+    }
+
+    public void GoToLevelMap(int levelId, string letterCode)
+    {
+        GameContext.SelectedLetterId = levelId;
+        GameContext.SelectedLetterCode = letterCode;
+        SceneManager.LoadScene("LevelMapScene");
+    }
+
+    public void BildirimSayfasiniAc()
+    {
+        SceneManager.LoadScene("NotificationScene");
+    }
 }

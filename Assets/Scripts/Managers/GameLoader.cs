@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using GraduationProject.Utilities; // GameContext için
+using GraduationProject.Models;
 
 public class GameLoader : MonoBehaviour
 {

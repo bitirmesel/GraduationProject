@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Threading.Tasks;
 using GraduationProject.Utilities;
 using GraduationProject.Managers;
+using GraduationProject.Models;
 
 public abstract class BaseGameManager : MonoBehaviour
 {

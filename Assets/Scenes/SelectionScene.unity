@@ -3610,7 +3610,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   levelID: 2
-  letterCode: 
+  letterCode: C
   myButton: {fileID: 627076314}
   myImage: {fileID: 627076315}
   lockImage: {fileID: 0}
@@ -5241,7 +5241,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   levelID: 4
-  letterCode: 
+  letterCode: D
   myButton: {fileID: 892302473}
   myImage: {fileID: 892302474}
   lockImage: {fileID: 0}
@@ -5412,7 +5412,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   levelID: 3
-  letterCode: 
+  letterCode: "\xC7"
   myButton: {fileID: 902334623}
   myImage: {fileID: 902334624}
   lockImage: {fileID: 0}
@@ -8946,9 +8946,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5fd6a4cb52411a547b4b554d9a8552b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  scrollView: {fileID: 1966711836}
   notificationBadge: {fileID: 861534242}
-  notificationText: {fileID: 1541532457}
+  notificationCountText: {fileID: 0}
 --- !u!4 &1765270669
 Transform:
   m_ObjectHideFlags: 0

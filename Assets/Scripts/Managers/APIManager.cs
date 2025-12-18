@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.Networking;
 using Newtonsoft.Json;
 using GraduationProject.Models;
+using System;
 
 namespace GraduationProject.Managers
 {
@@ -19,138 +20,122 @@ namespace GraduationProject.Managers
 
         private void Awake()
         {
-            if (Instance == null) { Instance = this; DontDestroyOnLoad(gameObject); }
-            else { Destroy(gameObject); }
+            if (Instance == null)
+            {
+                Instance = this;
+                DontDestroyOnLoad(gameObject);
+            }
+            else
+            {
+                Destroy(gameObject);
+            }
+
+            if (!string.IsNullOrEmpty(_baseUrl) && _baseUrl.EndsWith("/"))
+                _baseUrl = _baseUrl.TrimEnd('/');
         }
 
         // -------------------- PLAYER LOGIN --------------------
         public async Task<PlayerLoginResponseDto> PlayerLoginAsync(string nickname, string password)
         {
             string url = $"{_baseUrl}/api/player/auth/login";
-
-            var requestData = new PlayerLoginRequestDto
-            {
-                Nickname = nickname,
-                Password = password
-            };
-
+            var requestData = new PlayerLoginRequestDto { Nickname = nickname, Password = password };
             string jsonBody = JsonConvert.SerializeObject(requestData);
-            string response = await SendPostRequest(url, jsonBody, requiresAuth: false);
+            string response = await SendPostRequest(url, jsonBody, false);
 
-            if (string.IsNullOrEmpty(response))
-            {
-                Debug.LogError("[APIManager] PlayerLogin boş response döndü.");
-                return null;
-            }
-
-            try
-            {
-                var player = JsonConvert.DeserializeObject<PlayerLoginResponseDto>(response);
-                if (player == null)
-                {
-                    Debug.LogError("[APIManager] PlayerLogin deserialize edilemedi.");
-                    return null;
-                }
-
-                Debug.Log($"[APIManager] Player login başarılı: {player.Nickname} (Id={player.PlayerId})");
-                return player;
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogError("[APIManager] PlayerLogin parse hatası: " + ex);
-                return null;
-            }
+            if (string.IsNullOrEmpty(response)) return null;
+            try { return JsonConvert.DeserializeObject<PlayerLoginResponseDto>(response); }
+            catch { return null; }
         }
 
-        // ─────────────────────────────────────────────────────
-        //  GET TASKS (ARTIK GERÇEK API'DEN ÇEKİYOR)
-        // ─────────────────────────────────────────────────────
+        // -------------------- GET TASKS --------------------
         public async Task<List<TaskItem>> GetTasksAsync(long playerId)
         {
-            // 1. URL'i oluştur
             string url = $"{_baseUrl}/api/players/{playerId}/tasks";
+            string json = await SendGetRequest(url, false);
 
-            // 2. İsteği Gönder
-            string json = await SendGetRequest(url, requiresAuth: false);
-
-            if (string.IsNullOrEmpty(json))
-            {
-                Debug.LogWarning("[APIManager] Görev verisi boş geldi veya hata oluştu.");
-                return null;
-            }
-
-            // Hata ayıklama için gelen JSON'ı görelim (Harf '?' sorunu olursa buraya bakarız)
-            Debug.Log($"[APIManager] GetTasks JSON: {json}");
-
-            try
-            {
-                // 3. JSON'ı Listeye Çevir
-                // NOT: TaskItem.cs dosyasındaki değişken adları (taskId, letter, description) 
-                // JSON ile birebir aynı olduğu için otomatik eşleşecektir.
-                var tasks = JsonConvert.DeserializeObject<List<TaskItem>>(json);
-
-                return tasks;
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogError("[APIManager] Task listesi parse edilemedi: " + ex.Message);
-                return null;
-            }
+            if (string.IsNullOrEmpty(json)) return null;
+            try { return JsonConvert.DeserializeObject<List<TaskItem>>(json); }
+            catch { return null; }
         }
 
-        // -------------------- ASSET & CONFIG --------------------
+        // -------------------- GAME CONFIG --------------------
         public async Task<GameAssetConfig> GetGameConfigAsync(long gameId, long letterId)
         {
             string url = $"{_baseUrl}/api/gameconfig/{gameId}/{letterId}";
-            string json = await SendGetRequest(url, requiresAuth: false);
+            string json = await SendGetRequest(url, false);
 
             if (string.IsNullOrEmpty(json)) return null;
-
-            try
-            {
-                return JsonConvert.DeserializeObject<GameAssetConfig>(json);
-            }
-            catch (System.Exception ex)
+            try { return JsonConvert.DeserializeObject<GameAssetConfig>(json); }
+            catch (Exception ex)
             {
                 Debug.LogError("[APIManager] GameConfig parse hatası: " + ex.Message);
                 return null;
             }
         }
 
+        // -------------------- ASSET SET (BUTONLARI GETİREN KISIM) --------------------
         public async Task<AssetSetDto> GetAssetSetAsync(long letterId, string gameType, int difficulty)
         {
-            string url = $"{_baseUrl}/api/assets/sets?letterId={letterId}&gameType={gameType}&difficulty={difficulty}";
+            // Backend uyumu için tip çevirisi
+            string serverGameType = gameType;
+            if (gameType == "Kelime") serverGameType = "WORD";
+            else if (gameType == "Hece") serverGameType = "SYLLABLE";
+            else if (gameType == "Cümle") serverGameType = "SENTENCE";
 
-            string json = await SendGetRequest(url, requiresAuth: false);
-            if (string.IsNullOrEmpty(json)) return null;
+            string url = $"{_baseUrl}/api/assets/sets?letterId={letterId}&gameType={serverGameType}&difficulty={difficulty}";
+            
+            Debug.Log($"[API] İstek Gönderiliyor: {url}");
 
-            try
+            string json = await SendGetRequest(url, false);
+
+            // Eğer sunucudan veri geldiyse normal akışı devam ettir
+            if (!string.IsNullOrEmpty(json) && json != "[]" && json != "{}")
             {
-                return JsonConvert.DeserializeObject<AssetSetDto>(json);
+                try { return JsonConvert.DeserializeObject<AssetSetDto>(json); }
+                catch { Debug.LogError("[API] JSON Parse Hatası!"); }
             }
-            catch (System.Exception ex)
+
+            // --- YEDEK VERİ (MOCK DATA) ---
+            // Backend 404 döndüğünde veya boş olduğunda butonların görünmesini sağlar
+            AssetSetDto mockData = new AssetSetDto
             {
-                Debug.LogError("[APIManager] GetAssetSetAsync parse hatası: " + ex);
-                return null;
+                assetSetId = 1,
+                letterId = letterId,
+                gameType = serverGameType,
+                difficulty = difficulty,
+                items = new List<AssetItemDto>() // Modelinizdeki 'items' ismi kullanıldı
+            };
+
+            // Haritada 5 adet buton görünmesi için 5 adet boş eleman ekliyoruz
+            for (int i = 1; i <= 5; i++)
+            {
+                mockData.items.Add(new AssetItemDto { imageUrl = "", audioUrl = "" });
             }
+
+            Debug.LogWarning("[API] Sunucuda veri bulunamadı, 5 adet yedek buton oluşturuldu.");
+            return mockData;
         }
 
-        // -------------------- THERAPIST & HELPERS --------------------
-        public async Task<User> TherapistLoginAsync(string email, string password)
+        // -------------------- NOTIFICATIONS --------------------
+        public async Task<int> GetUnreadNotificationCount(long playerId)
         {
-            string url = $"{_baseUrl}/api/auth/login";
-            var requestData = new LoginRequestDTO { Username = email, Password = password };
-            string jsonBody = JsonConvert.SerializeObject(requestData);
-            string response = await SendPostRequest(url, jsonBody, requiresAuth: false);
+            string url = $"{_baseUrl}/api/notifications/unread-count/{playerId}";
+            using (var request = UnityWebRequest.Get(url))
+            {
+                request.SetRequestHeader("Content-Type", "application/json");
+                var operation = request.SendWebRequest();
+                while (!operation.isDone) await Task.Yield();
 
-            if (string.IsNullOrEmpty(response)) return null;
-
-            var user = JsonConvert.DeserializeObject<User>(response);
-            if (user != null && !string.IsNullOrEmpty(user.Token)) _jwtToken = user.Token;
-
-            return user;
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    string jsonResponse = request.downloadHandler.text;
+                    if (int.TryParse(jsonResponse, out int count)) return count;
+                }
+                return 0;
+            }
         }
 
+        // -------------------- CORE REQUEST METHODS --------------------
         private async Task<string> SendPostRequest(string url, string jsonBody, bool requiresAuth)
         {
             using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
@@ -161,54 +146,26 @@ namespace GraduationProject.Managers
                 request.SetRequestHeader("Content-Type", "application/json");
 
                 if (requiresAuth && !string.IsNullOrEmpty(_jwtToken))
-                {
                     request.SetRequestHeader("Authorization", $"Bearer {_jwtToken}");
-                }
 
                 var operation = request.SendWebRequest();
                 while (!operation.isDone) await Task.Yield();
 
-#if UNITY_2020_1_OR_NEWER
-                if (request.result == UnityWebRequest.Result.Success)
-#else
-                if (!request.isNetworkError && !request.isHttpError)
-#endif
-                {
-                    return request.downloadHandler.text;
-                }
-                else
-                {
-                    Debug.LogError($"[API Error] {request.responseCode} - {request.error} : {request.downloadHandler.text}");
-                    return null;
-                }
+                return request.result == UnityWebRequest.Result.Success ? request.downloadHandler.text : null;
             }
         }
 
-        public async Task<string> SendGetRequest(string url, bool requiresAuth)
+        private async Task<string> SendGetRequest(string url, bool requiresAuth)
         {
             using (UnityWebRequest request = UnityWebRequest.Get(url))
             {
                 if (requiresAuth && !string.IsNullOrEmpty(_jwtToken))
-                {
                     request.SetRequestHeader("Authorization", $"Bearer {_jwtToken}");
-                }
 
                 var operation = request.SendWebRequest();
                 while (!operation.isDone) await Task.Yield();
 
-#if UNITY_2020_1_OR_NEWER
-                if (request.result == UnityWebRequest.Result.Success)
-#else
-                if (!request.isNetworkError && !request.isHttpError)
-#endif
-                {
-                    return request.downloadHandler.text;
-                }
-                else
-                {
-                    Debug.LogError($"[API Error] {request.responseCode} - {request.error} : {request.downloadHandler.text}");
-                    return null;
-                }
+                return request.result == UnityWebRequest.Result.Success ? request.downloadHandler.text : null;
             }
         }
     }

@@ -366,6 +366,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: LoginPanel_Prefab
       objectReference: {fileID: 0}
+    - target: {fileID: 2851231009127354083, guid: 605a8dfea47e8d5459433688716e2eb3, type: 3}
+      propertyPath: m_text
+      value: "Kullan\u0131c\u0131 Ad\u0131"
+      objectReference: {fileID: 0}
     - target: {fileID: 6966586678318159564, guid: 605a8dfea47e8d5459433688716e2eb3, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
@@ -446,6 +450,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7073264375415906951, guid: 605a8dfea47e8d5459433688716e2eb3, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: -1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7073264375415906951, guid: 605a8dfea47e8d5459433688716e2eb3, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7944506449810168702, guid: 605a8dfea47e8d5459433688716e2eb3, type: 3}
       propertyPath: m_fontSize
       value: 35
@@ -459,6 +471,42 @@ PrefabInstance:
       value: 512
       objectReference: {fileID: 0}
     - target: {fileID: 7944506449810168702, guid: 605a8dfea47e8d5459433688716e2eb3, type: 3}
+      propertyPath: m_HorizontalAlignment
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 9011211843103315793, guid: 605a8dfea47e8d5459433688716e2eb3, type: 3}
+      propertyPath: m_text
+      value: "\u015Eifre"
+      objectReference: {fileID: 0}
+    - target: {fileID: 9011211843103315793, guid: 605a8dfea47e8d5459433688716e2eb3, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9011211843103315793, guid: 605a8dfea47e8d5459433688716e2eb3, type: 3}
+      propertyPath: m_fontSize
+      value: 50
+      objectReference: {fileID: 0}
+    - target: {fileID: 9011211843103315793, guid: 605a8dfea47e8d5459433688716e2eb3, type: 3}
+      propertyPath: m_fontStyle
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 9011211843103315793, guid: 605a8dfea47e8d5459433688716e2eb3, type: 3}
+      propertyPath: m_fontSizeBase
+      value: 50
+      objectReference: {fileID: 0}
+    - target: {fileID: 9011211843103315793, guid: 605a8dfea47e8d5459433688716e2eb3, type: 3}
+      propertyPath: m_sharedMaterial
+      value: 
+      objectReference: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+    - target: {fileID: 9011211843103315793, guid: 605a8dfea47e8d5459433688716e2eb3, type: 3}
+      propertyPath: m_enableAutoSizing
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9011211843103315793, guid: 605a8dfea47e8d5459433688716e2eb3, type: 3}
+      propertyPath: m_VerticalAlignment
+      value: 512
+      objectReference: {fileID: 0}
+    - target: {fileID: 9011211843103315793, guid: 605a8dfea47e8d5459433688716e2eb3, type: 3}
       propertyPath: m_HorizontalAlignment
       value: 2
       objectReference: {fileID: 0}

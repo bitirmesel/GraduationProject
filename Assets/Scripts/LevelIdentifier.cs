@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using TMPro;
 using UnityEngine.SceneManagement;
 using GraduationProject.Utilities;
+using GraduationProject.Models;
 
 public class LevelIdentifier : MonoBehaviour
 {

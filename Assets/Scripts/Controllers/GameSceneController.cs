@@ -1,5 +1,6 @@
 using GraduationProject.Utilities;
 using UnityEngine;
+using GraduationProject.Models;
 
 public class GameSceneController : MonoBehaviour
 {

@@ -1,131 +1,61 @@
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 using UnityEngine.SceneManagement;
+using System.Threading.Tasks;
 using GraduationProject.Managers;
-using GraduationProject.Utilities;
+using GraduationProject.Models; 
+using TMPro; // <--- BAK BU EKSİKTİ, BU YÜZDEN HATA VERİYORDU
 
 namespace GraduationProject.Controllers
 {
     public class LoginController : MonoBehaviour
     {
-        // Inspector'da görünmez, kod tarafından doldurulur.
-        private TMP_InputField _usernameInput;
-        private TMP_InputField _passwordInput;
-        private Button _loginButton;
-        private TMP_Text _feedbackText;
-
-        // UI Obje İsimleri (Sözleşme)
-        private const string NAME_INPUT_USER = "Input_Username";
-        private const string NAME_INPUT_PASS = "Input_Password";
-        private const string NAME_BTN_LOGIN = "Btn_Login";
-        private const string NAME_TXT_FEEDBACK = "Txt_Feedback";
-
-        private void Awake()
-        {
-            // LoginPanel_Prefab içindeki child objeleri isimle buluyoruz
-            _usernameInput = transform.GetComponentInDeepChild<TMP_InputField>(NAME_INPUT_USER);
-            _passwordInput = transform.GetComponentInDeepChild<TMP_InputField>(NAME_INPUT_PASS);
-            _loginButton = transform.GetComponentInDeepChild<Button>(NAME_BTN_LOGIN);
-            _feedbackText = transform.GetComponentInDeepChild<TMP_Text>(NAME_TXT_FEEDBACK);
-        }
+        [Header("UI Referansları")]
+        public TMP_InputField emailInput;
+        public TMP_InputField passwordInput;
+        public Button loginButton;
+        public TextMeshProUGUI statusText;
 
         private void Start()
         {
-            if (_loginButton != null)
-                _loginButton.onClick.AddListener(OnLoginClicked);
-
-            ResetUI();
-        }
-
-        private void OnDestroy()
-        {
-            if (_loginButton != null)
-                _loginButton.onClick.RemoveListener(OnLoginClicked);
+            if (loginButton != null)
+                loginButton.onClick.AddListener(OnLoginClicked);
         }
 
         private async void OnLoginClicked()
         {
-            // 1. Input Kontrolleri
-            if (_usernameInput == null || _passwordInput == null)
-            {
-                Debug.LogError("[LoginController] Input referansları eksik.");
-                return;
-            }
+            if (loginButton != null) loginButton.interactable = false;
+            if (statusText != null) statusText.text = "Giriş yapılıyor...";
+
+            string email = emailInput.text;
+            string pass = passwordInput.text;
 
             if (APIManager.Instance == null)
             {
-                ShowFeedback("Sunucu bağlantısı hatası.", Color.red);
+                Debug.LogError("APIManager yok!");
                 return;
             }
 
-            string nickname = _usernameInput.text.Trim();
-            string password = _passwordInput.text.Trim();
+            var player = await APIManager.Instance.PlayerLoginAsync(email, pass);
 
-            if (string.IsNullOrEmpty(nickname) || string.IsNullOrEmpty(password))
+            if (player != null)
             {
-                ShowFeedback("Kullanıcı adı ve şifre gerekli.", Color.red);
-                return;
-            }
+                // Bilgileri Kaydet
+                GameContext.PlayerId = (int)player.PlayerId;
+                
+                // Sıfırlamalar
+                GameContext.SelectedLetterId = 0;
+                GameContext.SelectedLetterCode = "";
+                GameContext.ImageUrls.Clear(); // Temiz bir başlangıç
 
-            // 2. Giriş İşlemi Başlıyor
-            ToggleInteractable(false);
-            ShowFeedback("Giriş yapılıyor...", Color.yellow);
-
-            try
-            {
-                // 1. API'den Giriş Yap
-                var player = await APIManager.Instance.PlayerLoginAsync(nickname, password);
-
-                if (player == null)
-                {
-                    ShowFeedback("Hatalı kullanıcı adı veya şifre.", Color.red);
-                    ToggleInteractable(true);
-                    return;
-                }
-
-                // 2. Başarılı! Verileri Kaydet
-                GameContext.PlayerId = player.PlayerId;
-                ShowFeedback($"Hoş geldin {player.Nickname}!", Color.green);
-
-                GameContext.FocusLevelId = 0; // <--- GARANTİ OLSUN DİYE SIFIRLA
+                if (statusText != null) statusText.text = $"Hoşgeldin {player.Nickname}!";
                 SceneManager.LoadScene("SelectionScene");
-
-                await System.Threading.Tasks.Task.Delay(500);
-
-                // 3. HİÇ SORMADAN DİREKT HARİTAYA GİT
-                // Görev kontrolünü burada yapmıyoruz, Selection ekranı kendi halledecek.
-                UnityEngine.SceneManagement.SceneManager.LoadScene("SelectionScene");
             }
-            catch (System.Exception ex)
+            else
             {
-                Debug.LogError("[LoginController] Hata: " + ex.Message);
-                ShowFeedback("Hata oluştu.", Color.red);
-                ToggleInteractable(true);
+                if (statusText != null) statusText.text = "Giriş başarısız.";
+                if (loginButton != null) loginButton.interactable = true;
             }
-        }
-
-        private void ShowFeedback(string message, Color color)
-        {
-            if (_feedbackText != null)
-            {
-                _feedbackText.text = message;
-                _feedbackText.color = color;
-            }
-        }
-
-        private void ToggleInteractable(bool state)
-        {
-            if (_usernameInput != null) _usernameInput.interactable = state;
-            if (_passwordInput != null) _passwordInput.interactable = state;
-            if (_loginButton != null) _loginButton.interactable = state;
-        }
-
-        private void ResetUI()
-        {
-            if (_feedbackText != null) _feedbackText.text = "";
-            if (_usernameInput != null) _usernameInput.text = "";
-            if (_passwordInput != null) _passwordInput.text = "";
         }
     }
 }
