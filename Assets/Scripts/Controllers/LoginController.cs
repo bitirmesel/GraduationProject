@@ -3,8 +3,9 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using System.Threading.Tasks;
 using GraduationProject.Managers;
-using GraduationProject.Models; 
-using TMPro; // <--- BAK BU EKSİKTİ, BU YÜZDEN HATA VERİYORDU
+using GraduationProject.Utilities; // GameContext buradaysa ekle
+using GraduationProject.Models;
+using TMPro;
 
 namespace GraduationProject.Controllers
 {
@@ -32,7 +33,8 @@ namespace GraduationProject.Controllers
 
             if (APIManager.Instance == null)
             {
-                Debug.LogError("APIManager yok!");
+                Debug.LogError("APIManager bulunamadı!");
+                if (loginButton != null) loginButton.interactable = true;
                 return;
             }
 
@@ -40,20 +42,27 @@ namespace GraduationProject.Controllers
 
             if (player != null)
             {
-                // Bilgileri Kaydet
+                // HATANIN ÇÖZÜMÜ: Küçük 'p' yerine büyük 'P' kullanıyoruz (player.PlayerId)
+                // Ayrıca uzunluk uyuşmazlığı olmaması için başına (long) veya (int) ekliyoruz
                 GameContext.PlayerId = (int)player.PlayerId;
-                
-                // Sıfırlamalar
+
+                // Seçimleri sıfırlıyoruz
                 GameContext.SelectedLetterId = 0;
                 GameContext.SelectedLetterCode = "";
-                GameContext.ImageUrls.Clear(); // Temiz bir başlangıç
+                
+                // Eğer ImageUrls bir liste ise temizliyoruz
+                if(GameContext.ImageUrls != null) GameContext.ImageUrls.Clear();
 
                 if (statusText != null) statusText.text = $"Hoşgeldin {player.Nickname}!";
+                
+                Debug.Log($"Giriş Başarılı! ID: {GameContext.PlayerId} kaydedildi.");
+
+                // Sahneye geçiş yapıyoruz (Tek sefer yeterli)
                 SceneManager.LoadScene("SelectionScene");
             }
             else
             {
-                if (statusText != null) statusText.text = "Giriş başarısız.";
+                if (statusText != null) statusText.text = "Giriş başarısız. Bilgilerinizi kontrol edin.";
                 if (loginButton != null) loginButton.interactable = true;
             }
         }

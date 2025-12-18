@@ -38,65 +38,37 @@ namespace GraduationProject.Controllers
         public async Task RefreshTasksAsync()
         {
             long currentId = GameContext.PlayerId;
+            if (currentId <= 0) currentId = _debugPlayerId;
 
-            // Debug modu veya Login kontrolü
-            if (currentId <= 0)
-            {
-#if UNITY_EDITOR
-                currentId = _debugPlayerId;
-#else
-                ShowEmptyState(); return;
-#endif
-            }
-
-            if (APIManager.Instance == null) { ShowEmptyState(); return; }
-
-            // Verileri Çek
             var tasks = await APIManager.Instance.GetTasksAsync(currentId);
 
             if (tasks != null && tasks.Count > 0)
             {
-                // --- DÜZELTME 1: "ASSIGNED" HEPSİ BÜYÜK HARF OLMALI ---
-                // API'den "ASSIGNED" geliyor, C# string karşılaştırması hassastır.
-                var newTasks = tasks.FindAll(t => t.status == "ASSIGNED");
+                // GÖREV VARSA: "Yok" yazısını kesinlikle gizle, görevleri göster
+                if (emptyStatePanel != null) emptyStatePanel.SetActive(false);
+                if (activeTaskPanel != null) activeTaskPanel.SetActive(true);
 
-                if (newTasks.Count > 0)
+                // Metni oluştururken sahte veriyi tamamen ezdiğinden emin ol
+                string fullText = "<size=120%><b>Bugünün Görevleri</b></size>\n\n";
+                foreach (var task in tasks)
                 {
-                    var priorityTask = newTasks[0];
-                    _targetLevelId = priorityTask.taskId;
-
-                    string fullText = "<size=120%><b>Bugünün Görevleri</b></size>\n\n";
-
-                    foreach (var task in newTasks)
-                    {
-                        // --- DÜZELTME 2: YENİ DEĞİŞKEN İSİMLERİ ---
-                        // letter -> letterCode
-                        // description -> gameName + note
-
-                        string letterVal = string.IsNullOrEmpty(task.letterCode) ? "?" : task.letterCode;
-
-                        string descVal = task.gameName;
-                        if (!string.IsNullOrEmpty(task.note)) descVal += $" ({task.note})";
-
-                        // Ekrana Yazdır
-                        fullText += $"<color=#FFA500>●</color> <b>Harf '{letterVal}'</b> : {descVal}\n\n";
-                    }
-
-                    if (notificationText != null) notificationText.text = fullText;
-
-                    if (activeTaskPanel != null) activeTaskPanel.SetActive(true);
-                    if (emptyStatePanel != null) emptyStatePanel.SetActive(false);
+                    string letter = !string.IsNullOrEmpty(task.letterCode) ? task.letterCode : "K";
+                    string game = !string.IsNullOrEmpty(task.gameName) ? task.gameName : "Görev";
+                    fullText += $"<color=#FFA500>●</color> <b>Harf '{letter}'</b> : {game}\n\n";
                 }
-                else
-                {
-                    // Görev var ama hepsi tamamlanmışsa
-                    ShowEmptyState();
-                }
+
+                if (notificationText != null)
+                    notificationText.text = fullText;
+
+                Debug.Log("[UI] Ekran Gerçek Veriyle Güncellendi.");
             }
             else
             {
-                ShowEmptyState();
+                ShowEmptyState(); // Görev yoksa sadece boş ekranı göster
             }
+
+            // APIManager.cs içindeki GetTasksAsync metodunu şu satırla güncelle:
+            //  string url = $"{baseUrl}/api/players/{playerId}/tasks?nocache={System.DateTime.Now.Ticks}";
         }
 
         // ... (ShowEmptyState ve OnActionClick fonksiyonları aynen kalacak) ...

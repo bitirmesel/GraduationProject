@@ -1,9 +1,13 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
+using GraduationProject.Managers;
+using GraduationProject.Models;
+using GraduationProject.Controllers;
+
 public class SceneNavigator : MonoBehaviour
 {
-    
+
     public static SceneNavigator Instance; // Diğer scriptlerden ulaşmak için anahtar
 
     private void Awake()
@@ -44,11 +48,14 @@ public class SceneNavigator : MonoBehaviour
         Debug.Log("Bildirimler Açılıyor...");
         SceneManager.LoadScene("NotificationScene");
     }
-    
+
     public void GoToLevelMap()
     {
-         Debug.Log("Harita Yükleniyor...");
-         SceneManager.LoadScene("LevelMapScene");
+        // Hata veren satırı namespace ekledikten sonra böyle kullanabilirsin
+        GameContext.IsFocusMode = false;
+
+        Debug.Log("Seçim yapıldı, haritaya gidiliyor...");
+        UnityEngine.SceneManagement.SceneManager.LoadScene("LevelMapScene");
     }
 
     // --- GENEL FONKSİYON (Kod İçinden Çağırmak İçin) ---
@@ -57,5 +64,23 @@ public class SceneNavigator : MonoBehaviour
     public void ChangeScene(string sceneName)
     {
         SceneManager.LoadScene(sceneName);
+    }
+
+    public void BackToMapFromGame()
+{
+    // Odak modunu kapatıyoruz
+    GameContext.IsFocusMode = false;
+    
+    Debug.Log("Oyundan haritaya dönülüyor...");
+    UnityEngine.SceneManagement.SceneManager.LoadScene("LevelMapScene");
+}
+
+    public void ReturnToMap()
+    {
+        // Odak modunu temizle ki haritaya dönünce tekrar takılı kalmasın
+        GameContext.IsFocusMode = false;
+
+        Debug.Log("Haritaya dönülüyor...");
+        SceneManager.LoadScene("LevelMapScene");
     }
 }

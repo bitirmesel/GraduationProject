@@ -376,6 +376,10 @@ PrefabInstance:
       propertyPath: m_HorizontalAlignment
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 8847942714523132049, guid: 4190b212940b7344883146abe56b0554, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 9058417776099357804, guid: 4190b212940b7344883146abe56b0554, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -417,7 +421,8 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 8847942714523132049, guid: 4190b212940b7344883146abe56b0554, type: 3}
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: 2609956082299839335, guid: 4190b212940b7344883146abe56b0554, type: 3}
       insertIndex: -1

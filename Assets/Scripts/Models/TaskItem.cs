@@ -2,7 +2,7 @@ using System;
 
 namespace GraduationProject.Models
 {
-    [Serializable]
+    [System.Serializable]
     public class TaskItem
     {
         // Log'dan gördüğümüz gerçek JSON anahtarları:
@@ -17,5 +17,12 @@ namespace GraduationProject.Models
         // Eski kodların patlamaması için yardımcı köprüler (Opsiyonel ama güvenli)
         public int TaskId => taskId;
         public string Status => status;
+
+            public long id;
+    public string title; // Backend'deki isimlendirmeye dikkat!
+    public string description; 
+    public bool isCompleted;
     }
 }
+
+

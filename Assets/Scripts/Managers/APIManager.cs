@@ -11,6 +11,8 @@ namespace GraduationProject.Managers
 {
     public class APIManager : MonoBehaviour
     {
+
+
         public static APIManager Instance { get; private set; }
 
         [Header("API Settings")]
@@ -50,14 +52,15 @@ namespace GraduationProject.Managers
         // -------------------- GET TASKS --------------------
         public async Task<List<TaskItem>> GetTasksAsync(long playerId)
         {
-            string url = $"{_baseUrl}/api/players/{playerId}/tasks";
+            // URL'ye benzersiz bir sayı ekleyerek Render'ın hafızasını (cache) devre dışı bırakıyoruz
+            string url = $"{_baseUrl}/api/players/{playerId}/tasks?t={System.DateTime.Now.Ticks}";
+
+            Debug.Log($"[API] İstek: {url}");
             string json = await SendGetRequest(url, false);
 
             if (string.IsNullOrEmpty(json)) return null;
-            try { return JsonConvert.DeserializeObject<List<TaskItem>>(json); }
-            catch { return null; }
+            return JsonConvert.DeserializeObject<List<TaskItem>>(json);
         }
-
         // -------------------- GAME CONFIG --------------------
         public async Task<GameAssetConfig> GetGameConfigAsync(long gameId, long letterId)
         {
@@ -74,45 +77,55 @@ namespace GraduationProject.Managers
         }
 
         // -------------------- ASSET SET (BUTONLARI GETİREN KISIM) --------------------
+
         public async Task<AssetSetDto> GetAssetSetAsync(long letterId, string gameType, int difficulty)
         {
-            // Backend uyumu için tip çevirisi
+            // 1. İsim Çevirisi (Backend'deki 'WORD' vs 'Kelime' uyuşmazlığını çözer)
             string serverGameType = gameType;
             if (gameType == "Kelime") serverGameType = "WORD";
             else if (gameType == "Hece") serverGameType = "SYLLABLE";
             else if (gameType == "Cümle") serverGameType = "SENTENCE";
 
             string url = $"{_baseUrl}/api/assets/sets?letterId={letterId}&gameType={serverGameType}&difficulty={difficulty}";
-            
-            Debug.Log($"[API] İstek Gönderiliyor: {url}");
+
+            Debug.Log($"[API] Backend'den veri isteniyor: {url}");
 
             string json = await SendGetRequest(url, false);
 
-            // Eğer sunucudan veri geldiyse normal akışı devam ettir
+            // --- GERÇEK VERİ KONTROLÜ ---
             if (!string.IsNullOrEmpty(json) && json != "[]" && json != "{}")
             {
-                try { return JsonConvert.DeserializeObject<AssetSetDto>(json); }
-                catch { Debug.LogError("[API] JSON Parse Hatası!"); }
+                try
+                {
+                    AssetSetDto realData = JsonConvert.DeserializeObject<AssetSetDto>(json);
+                    if (realData != null && realData.items != null && realData.items.Count > 0)
+                    {
+                        Debug.Log($"[API] BAŞARILI: Backend'den {realData.items.Count} adet gerçek görev/buton geldi.");
+                        return realData; // Gerçek veriyi bulduk, hemen döndür
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError("[API] JSON Çözümleme Hatası: " + ex.Message);
+                }
             }
 
-            // --- YEDEK VERİ (MOCK DATA) ---
-            // Backend 404 döndüğünde veya boş olduğunda butonların görünmesini sağlar
+            // --- YEDEK VERİ (SADECE HATA VARSA ÇALIŞIR) ---
+            Debug.LogWarning("[API] Backend'de veri bulunamadı, geçici butonlar oluşturuluyor.");
             AssetSetDto mockData = new AssetSetDto
             {
                 assetSetId = 1,
                 letterId = letterId,
                 gameType = serverGameType,
                 difficulty = difficulty,
-                items = new List<AssetItemDto>() // Modelinizdeki 'items' ismi kullanıldı
+                items = new List<AssetItemDto>()
             };
 
-            // Haritada 5 adet buton görünmesi için 5 adet boş eleman ekliyoruz
             for (int i = 1; i <= 5; i++)
             {
                 mockData.items.Add(new AssetItemDto { imageUrl = "", audioUrl = "" });
             }
 
-            Debug.LogWarning("[API] Sunucuda veri bulunamadı, 5 adet yedek buton oluşturuldu.");
             return mockData;
         }
 

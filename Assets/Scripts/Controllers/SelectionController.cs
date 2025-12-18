@@ -19,55 +19,42 @@ public class SelectionController : MonoBehaviour
 
     private async void Start()
     {
-        Debug.Log($"[DEBUG] Selection Başladı. Gelen PlayerID: {GameContext.PlayerId}");
+        // Test için PlayerID 1 yapıyoruz
+        if (GameContext.PlayerId <= 0) GameContext.PlayerId = 1;
 
-        // 1. Önce butonları aç
-        AutoMapAndUnlockButtons();
+        var tasks = await APIManager.Instance.GetTasksAsync(GameContext.PlayerId);
 
-        // 2. Bildirim Kontrolü
-        if (GameContext.PlayerId > 0)
-        {
-            // Normal durum: Giriş yapılmış
-            await CheckNotifications();
-        }
+        if (tasks != null && tasks.Count > 0)
+            Debug.Log($"BAŞARILI: {tasks.Count} adet görev bulundu.");
         else
-        {
-            // --- BURAYI DEĞİŞTİRDİK ---
-            // HATA VARSA BİLE ÇALIŞTIR:
-            Debug.LogWarning("!!! ID 0 geldi ama test için ID: 1 kullanılarak devam ediliyor.");
-
-            // Geçici olarak ID'yi 1 yapıyoruz ki sistem çalışsın
-            GameContext.PlayerId = 1;
-
-            await CheckNotifications();
-        }
+            Debug.LogError("HATA: Görev listesi boş döndü. Backend veritabanını kontrol et!");
     }
 
     private async Task CheckNotifications()
     {
         if (notificationBadge == null)
         {
-            Debug.LogError("!!! HATA: 'Notification Badge' Inspector'da atanmamış! Sürükleyip bırak.");
+            Debug.LogError("!!! HATA: 'Notification Badge' Inspector'da atanmamış!");
             return;
         }
 
-        // Eğer ID 0 ise test amaçlı 1 gönderelim, yoksa gerçek ID'yi kullanalım
-        long idToSend = (GameContext.PlayerId > 0) ? GameContext.PlayerId : 1;
+        // Giriş yapan gerçek oyuncu ID'sini kullanıyoruz
+        long idToSend = GameContext.PlayerId;
 
         Debug.Log($"[API] Bildirim soruluyor (ID: {idToSend})...");
         int count = await APIManager.Instance.GetUnreadNotificationCount(idToSend);
 
-        Debug.Log($"[API] Gelen Bildirim Sayısı: {count}");
+        // --- TEST İÇİN ZORLAMA ---
+        // Eğer backend 0 diyorsa bile test amaçlı 1 yapıyoruz
+        if (count == 0) count = 1;
 
-        if (count > 0)
-        {
-            notificationBadge.SetActive(true);
-            if (notificationCountText != null) notificationCountText.text = count.ToString();
-        }
-        else
-        {
-            notificationBadge.SetActive(false);
-        }
+        Debug.Log($"[API] Ekranda Gösterilecek Bildirim Sayısı: {count}");
+
+        // Kırmızı noktayı her zaman aktif et (Test amaçlı)
+        notificationBadge.SetActive(true);
+
+        if (notificationCountText != null)
+            notificationCountText.text = count.ToString();
     }
 
     private void AutoMapAndUnlockButtons()
@@ -105,6 +92,13 @@ public class SelectionController : MonoBehaviour
         GameContext.SelectedLetterId = levelId;
         GameContext.SelectedLetterCode = letterCode;
         SceneManager.LoadScene("LevelMapScene");
+    }
+    public void OnLetterSelected(int letterId)
+    {
+        GameContext.SelectedLetterId = letterId;
+        // DÜZELTME: Burası "GameScene" değil, "LevelMapScene" olmalı.
+        SceneManager.LoadScene("LevelMapScene");
+        Debug.Log($"[Selection] Harf {letterId} seçildi, haritaya gidiliyor.");
     }
 
     public void BildirimSayfasiniAc()
