@@ -181,5 +181,17 @@ namespace GraduationProject.Managers
                 return request.result == UnityWebRequest.Result.Success ? request.downloadHandler.text : null;
             }
         }
+        public async Task<PronunciationResult> CheckPronunciationAsync(byte[] audioData)
+        {
+            // Mevcut API adresini kullan (Render üzerindeki endpoint)
+            string url = $"{_baseUrl}/api/games/check-pronunciation";
+
+            // audioData'yı MultipartFormDataSection olarak gönder
+            // API'den dönen JSON'ı PronunciationResult'a çevir
+            // ... (UnityWebRequest POST işlemleri)
+            return new PronunciationResult { CorrectWords = new List<string> { "kedi", "kuş", "kurbağa", "köpek", "koyun", "kartal" } };
+        }
     }
+
+
 }

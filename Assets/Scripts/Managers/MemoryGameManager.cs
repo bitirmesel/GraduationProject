@@ -10,22 +10,22 @@ using GraduationProject.Utilities;
 public class MemoryGameManager : BaseGameManager
 {
     [Header("References")]
-    [SerializeField] private Transform _gridContainer; 
-    [SerializeField] private MemoryCard _cardPrefab;   
+    [SerializeField] private Transform _gridContainer;
+    [SerializeField] private MemoryCard _cardPrefab;
 
     [Header("Config")]
-    [SerializeField] private long _fixedGameId = 4; 
+    [SerializeField] private long _fixedGameId = 4;
 
     // Veriler
-    private Sprite _cardBackSprite; 
-    private List<Sprite> _faceSprites = new List<Sprite>(); 
+    private Sprite _cardBackSprite;
+    private List<Sprite> _faceSprites = new List<Sprite>();
 
     // Mantık
-    private MemoryCard _firstCard;  
-    private MemoryCard _secondCard; 
-    private bool _inputLocked = false; 
-    private int _matchesFound = 0;  
-    private int _totalPairs = 0;    
+    private MemoryCard _firstCard;
+    private MemoryCard _secondCard;
+    private bool _inputLocked = false;
+    private int _matchesFound = 0;
+    private int _totalPairs = 0;
 
     // --- 1. CLOUD YÜKLEME ---
     public override async Task InitializeGame(long letterId)
@@ -42,7 +42,7 @@ public class MemoryGameManager : BaseGameManager
         Debug.Log($"[MemoryGameManager] gameId={gameId} letterId={letterId} config çekiliyor...");
 
         var config = await APIManager.Instance.GetGameConfigAsync(gameId, letterId);
-        
+
         // EMNİYET 2: Config gelmediyse dur
         if (config == null)
         {
@@ -60,13 +60,13 @@ public class MemoryGameManager : BaseGameManager
             {
                 var item = config.Items[i];
                 string fullUrl = config.BaseUrl + item.File;
-                
+
                 Sprite sprite = await AssetLoader.Instance.GetSpriteAsync(fullUrl, item.File);
 
                 if (sprite != null)
                 {
                     // Sprite ismini garantiye al (Hash code hatası için)
-                    sprite.name = $"Card_{item.Key}_{i}"; 
+                    sprite.name = $"Card_{item.Key}_{i}";
 
                     if (item.Key == "background") _cardBackSprite = sprite;
                     else _faceSprites.Add(sprite);
@@ -93,7 +93,7 @@ public class MemoryGameManager : BaseGameManager
         foreach (Sprite s in _faceSprites)
         {
             // Emniyet: Liste oluşturulurken sprite silinmiş mi?
-            if (s != null) 
+            if (s != null)
             {
                 deck.Add(s);
                 deck.Add(s);
@@ -114,17 +114,17 @@ public class MemoryGameManager : BaseGameManager
         foreach (Sprite s in deck)
         {
             // EMNİYET 3: MissingReferenceException Engelleyici
-            if (s == null) 
+            if (s == null)
             {
                 Debug.LogWarning("Bir sprite kayıp, kart atlanıyor.");
                 continue;
             }
 
             MemoryCard card = Instantiate(_cardPrefab, _gridContainer);
-            
+
             // İsme erişmeden önce null check yaptık, güvenli.
-            int cardId = s.name.GetHashCode(); 
-            
+            int cardId = s.name.GetHashCode();
+
             card.Setup(cardId, s, _cardBackSprite, OnCardSelected);
         }
     }
@@ -144,7 +144,7 @@ public class MemoryGameManager : BaseGameManager
         else
         {
             _secondCard = clickedCard;
-            _inputLocked = true; 
+            _inputLocked = true;
             StartCoroutine(CheckMatch());
         }
     }
@@ -154,10 +154,10 @@ public class MemoryGameManager : BaseGameManager
         yield return new WaitForSeconds(1.0f);
 
         // Kartlar yok olduysa (sahne değişimi vb) hata vermesin
-        if (_firstCard == null || _secondCard == null) 
+        if (_firstCard == null || _secondCard == null)
         {
-             _inputLocked = false;
-             yield break;
+            _inputLocked = false;
+            yield break;
         }
 
         if (_firstCard.CardID == _secondCard.CardID)
@@ -171,9 +171,9 @@ public class MemoryGameManager : BaseGameManager
             {
                 Debug.Log("OYUN BİTTİ! Harika!");
                 yield return new WaitForSeconds(2.0f);
-                
+
                 // BaseGameManager'daki bitiş fonksiyonu
-                GameCompleted(); 
+                GameCompleted();
             }
         }
         else
@@ -226,5 +226,59 @@ public class MemoryGameManager : BaseGameManager
         {
             SetupGrid();
         }
+    }
+
+    public async void OnGameComplete()
+    {
+        // 1. Tebrik Sesi (Kısa bir alkış veya "Tebrikler" efekti)
+        // AudioManager tanımlı değilse hata verir
+        AudioManager.Instance.PlayEffect("CongratsEffect");
+
+        // 2. Özel Sesli Talimat (Ses dosyasını Resources klasörüne atman gerekir)
+        // "Tebrikler kurbağa, kedi, koyun... Şimdi telaffuz sırası sende!"
+        await AudioManager.Instance.PlayVoiceOverAsync("Instruction_Pronunciation_K");
+
+        // 3. Telaffuz Paneli (Ses Kayıt Arayüzü)
+        // UIPanelManager tanımlı değilse hata verir
+        UIPanelManager.Instance.ShowPronunciationPanel(true);
+    }
+    public void HandlePronunciationResult(PronunciationResult result)
+    {
+        int correctCount = result.CorrectWords.Count;
+
+        if (correctCount >= 5) // 5 veya 6 doğru (Sadece 1 veya 0 yanlış)
+        {
+            Debug.Log("Bölüm Geçildi!");
+            ShowVictoryPopup(); // "Harika iş çıkardın!" menüsü
+        }
+        else // 2 veya daha fazla yanlış (4 ve altı doğru)
+        {
+            Debug.Log("Tekrar Denenmeli.");
+            // Sesli geri bildirim: "Hadi, bir kez daha deneyelim!"
+            AudioManager.Instance.PlayVoiceOver("Retry_Instruction");
+            ShowRetryPopup(); // Oyunu tekrar başlatacak butonun olduğu menü
+        }
+    }
+
+    // MemoryGameManager.cs içine ekle
+    private void ShowVictoryPopup()
+    {
+        Debug.Log("Tebrikler Menüsü Açılıyor...");
+        // UIPanelManager aracılığıyla başarı panelini göster
+        UIPanelManager.Instance.ShowVictoryPanel(true);
+    }
+
+    private void ShowRetryPopup()
+    {
+        Debug.Log("Yeniden Dene Menüsü Açılıyor...");
+        // UIPanelManager aracılığıyla başarısızlık panelini göster
+        UIPanelManager.Instance.ShowRetryPanel(true);
+    }
+
+    public static MemoryGameManager Instance; // Bunu eklediğinde hata silinecektir
+
+    private void Awake()
+    {
+        Instance = this;
     }
 }
