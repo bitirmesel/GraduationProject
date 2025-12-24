@@ -1,9 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
-using System.Threading.Tasks;
 using GraduationProject.Managers;
-using GraduationProject.Utilities; // GameContext buradaysa ekle
 using GraduationProject.Models;
 using TMPro;
 
@@ -19,52 +17,92 @@ namespace GraduationProject.Controllers
 
         private void Start()
         {
+            // Butonu kod üzerinden bulur ve görevi atar
             if (loginButton != null)
+            {
+                loginButton.onClick.RemoveAllListeners();
                 loginButton.onClick.AddListener(OnLoginClicked);
+                Debug.Log("[LOGIN] Buton başarıyla koda bağlandı.");
+            }
         }
 
-        private async void OnLoginClicked()
+        public async void OnLoginClicked()
         {
             if (loginButton != null) loginButton.interactable = false;
             if (statusText != null) statusText.text = "Giriş yapılıyor...";
 
-            string email = emailInput.text;
-            string pass = passwordInput.text;
+            string email = emailInput != null ? emailInput.text?.Trim() : "";
+            string pass = passwordInput != null ? passwordInput.text : "";
 
-            if (APIManager.Instance == null)
+            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(pass))
             {
-                Debug.LogError("APIManager bulunamadı!");
+                if (statusText != null) statusText.text = "Email ve şifre boş olamaz.";
                 if (loginButton != null) loginButton.interactable = true;
                 return;
             }
 
+            if (APIManager.Instance == null)
+            {
+                Debug.LogError("[LOGIN] APIManager.Instance bulunamadı!");
+                if (statusText != null) statusText.text = "Sistem hatası: APIManager yok.";
+                if (loginButton != null) loginButton.interactable = true;
+                return;
+            }
+
+            Debug.Log($"[LOGIN] Deneniyor... email={email}");
+
+            // ---- LOGIN ----
             var player = await APIManager.Instance.PlayerLoginAsync(email, pass);
 
-            if (player != null)
+            if (player == null)
             {
-                // HATANIN ÇÖZÜMÜ: Küçük 'p' yerine büyük 'P' kullanıyoruz (player.PlayerId)
-                // Ayrıca uzunluk uyuşmazlığı olmaması için başına (long) veya (int) ekliyoruz
-                GameContext.PlayerId = (int)player.PlayerId;
-
-                // Seçimleri sıfırlıyoruz
-                GameContext.SelectedLetterId = 0;
-                GameContext.SelectedLetterCode = "";
-                
-                // Eğer ImageUrls bir liste ise temizliyoruz
-                if(GameContext.ImageUrls != null) GameContext.ImageUrls.Clear();
-
-                if (statusText != null) statusText.text = $"Hoşgeldin {player.Nickname}!";
-                
-                Debug.Log($"Giriş Başarılı! ID: {GameContext.PlayerId} kaydedildi.");
-
-                // Sahneye geçiş yapıyoruz (Tek sefer yeterli)
-                SceneManager.LoadScene("SelectionScene");
-            }
-            else
-            {
+                Debug.LogWarning("[LOGIN] player=null döndü. Login başarısız.");
                 if (statusText != null) statusText.text = "Giriş başarısız. Bilgilerinizi kontrol edin.";
                 if (loginButton != null) loginButton.interactable = true;
+                return;
             }
+
+            // ---- KRİTİK LOG (ID MAPPING TEŞHİSİ) ----
+            // Player modelinde hangi alanlar varsa hepsini burada görürsün.
+            // (Player sınıfında olmayan property’leri yazma; compile hatası verir.)
+            Debug.Log($"[LOGIN] Player objesi geldi. Nickname={player.Nickname} | PlayerId(property)={player.PlayerId}");
+
+            // Eğer PlayerId 0/negatif geliyorsa burada yakala
+            if (player.PlayerId <= 0)
+            {
+                Debug.LogError($"[LOGIN] HATA: player.PlayerId <= 0 geldi! ({player.PlayerId}) " +
+                               "Bu durumda backend yanlış alan dönüyor olabilir veya model mapping yanlış.");
+            }
+
+            // ---- GAMECONTEXT SET ----
+            // LoginController.cs içindeki ilgili kısım
+            Debug.Log($"[LOGIN] API'den Gelen -> Nickname: {player.Nickname}, ID: {player.PlayerId}");
+
+            // Eğer burada ID hala 0 geliyorsa, Backend "id" değil "playerId" ismini kullanıyor olabilir.
+            // O durumda [JsonProperty("playerId")] olarak değiştirmelisin.
+
+            GameContext.PlayerId = player.PlayerId;
+
+            // Seçimleri sıfırla
+            GameContext.SelectedLetterId = 0;
+            GameContext.SelectedLetterCode = "";
+            GameContext.IsFocusMode = false;
+            GameContext.SelectedDifficulty = 0;
+            GameContext.SelectedGameType = null;
+            GameContext.SelectedAssetSetId = 0;
+            GameContext.SelectedGameId = 0;
+
+            if (GameContext.ImageUrls != null) GameContext.ImageUrls.Clear();
+            if (GameContext.AudioUrls != null) GameContext.AudioUrls.Clear();
+
+            // UI
+            if (statusText != null) statusText.text = $"Hoşgeldin {player.Nickname}!";
+
+            // SON LOG
+            Debug.Log($"[LOGIN] Giriş Başarılı! GameContext.PlayerId set edildi -> {GameContext.PlayerId}");
+
+            // ---- SCENE ----
+            SceneManager.LoadScene("SelectionScene");
         }
     }
 }

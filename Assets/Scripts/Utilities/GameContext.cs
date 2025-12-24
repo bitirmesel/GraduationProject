@@ -5,7 +5,7 @@ namespace GraduationProject.Models
     public static class GameContext
     {
         // --- TEMEL BİLGİLER ---
-        public static int PlayerId { get; set; }
+        public static long PlayerId { get; set; } // int yerine long yap
         
         // --- SELECTION EKRANINDAN GELENLER ---
         public static long SelectedLetterId { get; set; } 

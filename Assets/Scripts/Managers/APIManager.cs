@@ -44,9 +44,21 @@ namespace GraduationProject.Managers
             string jsonBody = JsonConvert.SerializeObject(requestData);
             string response = await SendPostRequest(url, jsonBody, false);
 
+            // --- KRİTİK LOG: Gelen ham veriyi burada gör ---
+            Debug.Log("[API RESPONSE RAW]: " + response);
+
             if (string.IsNullOrEmpty(response)) return null;
-            try { return JsonConvert.DeserializeObject<PlayerLoginResponseDto>(response); }
-            catch { return null; }
+
+            try
+            {
+                // JSON ayarlarını büyük/küçük harfe duyarsız olacak şekilde güncelleyebiliriz
+                return JsonConvert.DeserializeObject<PlayerLoginResponseDto>(response);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError("[API] Deserialization hatası: " + ex.Message);
+                return null;
+            }
         }
 
         // -------------------- GET TASKS --------------------
