@@ -11,8 +11,6 @@ namespace GraduationProject.Managers
 {
     public class APIManager : MonoBehaviour
     {
-
-
         public static APIManager Instance { get; private set; }
 
         [Header("API Settings")]
@@ -36,6 +34,13 @@ namespace GraduationProject.Managers
                 _baseUrl = _baseUrl.TrimEnd('/');
         }
 
+        // --- HATALI KISIM DÜZELTİLDİ ---
+        public string GetBaseUrl()
+        {
+            // Değişken adını _baseUrl olarak güncelledik
+            return _baseUrl;
+        }
+
         // -------------------- PLAYER LOGIN --------------------
         public async Task<PlayerLoginResponseDto> PlayerLoginAsync(string nickname, string password)
         {
@@ -52,15 +57,13 @@ namespace GraduationProject.Managers
         // -------------------- GET TASKS --------------------
         public async Task<List<TaskItem>> GetTasksAsync(long playerId)
         {
-            // URL'ye benzersiz bir sayı ekleyerek Render'ın hafızasını (cache) devre dışı bırakıyoruz
             string url = $"{_baseUrl}/api/players/{playerId}/tasks?t={System.DateTime.Now.Ticks}";
-
-            Debug.Log($"[API] İstek: {url}");
             string json = await SendGetRequest(url, false);
 
             if (string.IsNullOrEmpty(json)) return null;
             return JsonConvert.DeserializeObject<List<TaskItem>>(json);
         }
+
         // -------------------- GAME CONFIG --------------------
         public async Task<GameAssetConfig> GetGameConfigAsync(long gameId, long letterId)
         {
@@ -76,56 +79,34 @@ namespace GraduationProject.Managers
             }
         }
 
-        // -------------------- ASSET SET (BUTONLARI GETİREN KISIM) --------------------
-
+        // -------------------- ASSET SET --------------------
         public async Task<AssetSetDto> GetAssetSetAsync(long letterId, string gameType, int difficulty)
         {
-            // 1. İsim Çevirisi (Backend'deki 'WORD' vs 'Kelime' uyuşmazlığını çözer)
             string serverGameType = gameType;
             if (gameType == "Kelime") serverGameType = "WORD";
             else if (gameType == "Hece") serverGameType = "SYLLABLE";
             else if (gameType == "Cümle") serverGameType = "SENTENCE";
 
             string url = $"{_baseUrl}/api/assets/sets?letterId={letterId}&gameType={serverGameType}&difficulty={difficulty}";
-
-            Debug.Log($"[API] Backend'den veri isteniyor: {url}");
-
             string json = await SendGetRequest(url, false);
 
-            // --- GERÇEK VERİ KONTROLÜ ---
             if (!string.IsNullOrEmpty(json) && json != "[]" && json != "{}")
             {
                 try
                 {
                     AssetSetDto realData = JsonConvert.DeserializeObject<AssetSetDto>(json);
-                    if (realData != null && realData.items != null && realData.items.Count > 0)
-                    {
-                        Debug.Log($"[API] BAŞARILI: Backend'den {realData.items.Count} adet gerçek görev/buton geldi.");
-                        return realData; // Gerçek veriyi bulduk, hemen döndür
-                    }
+                    if (realData != null && realData.items != null && realData.items.Count > 0) return realData;
                 }
-                catch (Exception ex)
-                {
-                    Debug.LogError("[API] JSON Çözümleme Hatası: " + ex.Message);
-                }
+                catch (Exception ex) { Debug.LogError("[API] JSON Çözümleme Hatası: " + ex.Message); }
             }
 
-            // --- YEDEK VERİ (SADECE HATA VARSA ÇALIŞIR) ---
-            Debug.LogWarning("[API] Backend'de veri bulunamadı, geçici butonlar oluşturuluyor.");
+            // Mock Data (Yedek)
             AssetSetDto mockData = new AssetSetDto
             {
-                assetSetId = 1,
-                letterId = letterId,
-                gameType = serverGameType,
-                difficulty = difficulty,
+                assetSetId = 1, letterId = letterId, gameType = serverGameType, difficulty = difficulty,
                 items = new List<AssetItemDto>()
             };
-
-            for (int i = 1; i <= 5; i++)
-            {
-                mockData.items.Add(new AssetItemDto { imageUrl = "", audioUrl = "" });
-            }
-
+            for (int i = 1; i <= 5; i++) mockData.items.Add(new AssetItemDto { imageUrl = "", audioUrl = "" });
             return mockData;
         }
 
@@ -181,17 +162,12 @@ namespace GraduationProject.Managers
                 return request.result == UnityWebRequest.Result.Success ? request.downloadHandler.text : null;
             }
         }
+
+        // Bu metot şu an dummy (geçici) sonuç döndürüyor. Gerçek analiz PronunciationManager üzerinden yapılıyor.
         public async Task<PronunciationResult> CheckPronunciationAsync(byte[] audioData)
         {
-            // Mevcut API adresini kullan (Render üzerindeki endpoint)
-            string url = $"{_baseUrl}/api/games/check-pronunciation";
-
-            // audioData'yı MultipartFormDataSection olarak gönder
-            // API'den dönen JSON'ı PronunciationResult'a çevir
-            // ... (UnityWebRequest POST işlemleri)
+            await Task.Delay(100); 
             return new PronunciationResult { CorrectWords = new List<string> { "kedi", "kuş", "kurbağa", "köpek", "koyun", "kartal" } };
         }
     }
-
-
 }
