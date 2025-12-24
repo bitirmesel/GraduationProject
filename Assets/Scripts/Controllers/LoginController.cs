@@ -4,6 +4,7 @@ using UnityEngine.SceneManagement;
 using GraduationProject.Managers;
 using GraduationProject.Models;
 using TMPro;
+using System;
 
 namespace GraduationProject.Controllers
 {
@@ -17,7 +18,7 @@ namespace GraduationProject.Controllers
 
         private void Start()
         {
-            // Butonu kod üzerinden bulur ve görevi atar
+            // Butonu kod üzerinden bağlar
             if (loginButton != null)
             {
                 loginButton.onClick.RemoveAllListeners();
@@ -28,62 +29,85 @@ namespace GraduationProject.Controllers
 
         public async void OnLoginClicked()
         {
+            // Giriş işlemi başlarken butonu kilitliyoruz
             if (loginButton != null) loginButton.interactable = false;
             if (statusText != null) statusText.text = "Giriş yapılıyor...";
 
             string email = emailInput != null ? emailInput.text?.Trim() : "";
             string pass = passwordInput != null ? passwordInput.text : "";
 
+            // Boş input kontrolü
             if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(pass))
             {
-                if (statusText != null) statusText.text = "Email ve şifre boş olamaz.";
-                if (loginButton != null) loginButton.interactable = true;
+                if (statusText != null) statusText.text = "İsim ve şifre boş olamaz.";
+                ResetButton(); // Hata durumunda butonu tekrar aç
                 return;
             }
 
+            // APIManager kontrolü
             if (APIManager.Instance == null)
             {
                 Debug.LogError("[LOGIN] APIManager.Instance bulunamadı!");
-                if (statusText != null) statusText.text = "Sistem hatası: APIManager yok.";
-                if (loginButton != null) loginButton.interactable = true;
+                if (statusText != null) statusText.text = "Sistem hatası: Bağlantı kurulamadı.";
+                ResetButton();
                 return;
             }
 
-            Debug.Log($"[LOGIN] Deneniyor... email={email}");
-
-            // ---- LOGIN ----
-            var player = await APIManager.Instance.PlayerLoginAsync(email, pass);
-
-            if (player == null)
+            try
             {
-                Debug.LogWarning("[LOGIN] player=null döndü. Login başarısız.");
-                if (statusText != null) statusText.text = "Giriş başarısız. Bilgilerinizi kontrol edin.";
-                if (loginButton != null) loginButton.interactable = true;
-                return;
+                Debug.Log($"[LOGIN] Deneniyor... nickname={email}");
+
+                // ---- API Giriş İsteği ----
+                var player = await APIManager.Instance.PlayerLoginAsync(email, pass);
+
+                if (player == null)
+                {
+                    Debug.LogWarning("[LOGIN] Giriş başarısız: Yanıt boş döndü.");
+                    if (statusText != null) statusText.text = "Giriş başarısız. Bilgilerinizi kontrol edin.";
+                    ResetButton(); // Tekrar denemeye izin ver
+                    return;
+                }
+
+                // ---- PlayerId Kontrolü ----
+                // Backend'den gelen 'playerId' alanı modele doğru eşleşmeli
+                if (player.PlayerId <= 0)
+                {
+                    Debug.LogError($"[LOGIN] HATA: PlayerId geçersiz! (ID: {player.PlayerId})");
+                    if (statusText != null) statusText.text = "Kullanıcı verisi alınamadı.";
+                    ResetButton();
+                    return;
+                }
+
+                // ---- Başarılı Giriş: Context Verilerini Set Et ----
+                GameContext.PlayerId = player.PlayerId;
+
+                // Seçimleri ve önceki verileri temizle
+                ClearGameContext();
+
+                if (statusText != null) statusText.text = $"Hoşgeldin {player.Nickname}!";
+                Debug.Log($"[LOGIN] Giriş Başarılı! PlayerId: {GameContext.PlayerId}");
+
+                // Bir sonraki sahneye geç
+                SceneManager.LoadScene("SelectionScene");
             }
-
-            // ---- KRİTİK LOG (ID MAPPING TEŞHİSİ) ----
-            // Player modelinde hangi alanlar varsa hepsini burada görürsün.
-            // (Player sınıfında olmayan property’leri yazma; compile hatası verir.)
-            Debug.Log($"[LOGIN] Player objesi geldi. Nickname={player.Nickname} | PlayerId(property)={player.PlayerId}");
-
-            // Eğer PlayerId 0/negatif geliyorsa burada yakala
-            if (player.PlayerId <= 0)
+            catch (Exception ex)
             {
-                Debug.LogError($"[LOGIN] HATA: player.PlayerId <= 0 geldi! ({player.PlayerId}) " +
-                               "Bu durumda backend yanlış alan dönüyor olabilir veya model mapping yanlış.");
+                // İnternet kesintisi veya sunucu hatası durumunda burası çalışır
+                Debug.LogError($"[LOGIN] Beklenmedik Hata: {ex.Message}");
+                if (statusText != null) statusText.text = "Bağlantı hatası oluştu.";
+                ResetButton();
             }
+        }
 
-            // ---- GAMECONTEXT SET ----
-            // LoginController.cs içindeki ilgili kısım
-            Debug.Log($"[LOGIN] API'den Gelen -> Nickname: {player.Nickname}, ID: {player.PlayerId}");
+        // Butonu tekrar tıklanabilir hale getiren yardımcı metod
+        private void ResetButton()
+        {
+            if (loginButton != null) loginButton.interactable = true;
+        }
 
-            // Eğer burada ID hala 0 geliyorsa, Backend "id" değil "playerId" ismini kullanıyor olabilir.
-            // O durumda [JsonProperty("playerId")] olarak değiştirmelisin.
-
-            GameContext.PlayerId = player.PlayerId;
-
-            // Seçimleri sıfırla
+        // Önceki oyun oturumundan kalan verileri temizler
+        private void ClearGameContext()
+        {
             GameContext.SelectedLetterId = 0;
             GameContext.SelectedLetterCode = "";
             GameContext.IsFocusMode = false;
@@ -94,15 +118,6 @@ namespace GraduationProject.Controllers
 
             if (GameContext.ImageUrls != null) GameContext.ImageUrls.Clear();
             if (GameContext.AudioUrls != null) GameContext.AudioUrls.Clear();
-
-            // UI
-            if (statusText != null) statusText.text = $"Hoşgeldin {player.Nickname}!";
-
-            // SON LOG
-            Debug.Log($"[LOGIN] Giriş Başarılı! GameContext.PlayerId set edildi -> {GameContext.PlayerId}");
-
-            // ---- SCENE ----
-            SceneManager.LoadScene("SelectionScene");
         }
     }
 }
