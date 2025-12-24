@@ -202,26 +202,15 @@ public class MemoryGameManager : BaseGameManager
     }
 
     // --- 5. TELAFFUZ KONTROLÜ (UI'dan çağrılır) ---
-    public void SubmitPronunciation(int assetIndex)
+public void SubmitPronunciation(int assetIndex)
+{
+    // Artık targetWord veya callback göndermiyoruz.
+    // PronunciationManager.cs içindeki StopRecording() artık parametresizdir.
+    if (PronunciationManager.Instance != null)
     {
-        if (assetIndex < 0 || assetIndex >= _levelAssetData.Count) return;
-
-        string targetWord = _levelAssetData[assetIndex].Key;
-        Debug.Log($"'{targetWord}' için analiz başlatılıyor...");
-
-        PronunciationManager.Instance.StopRecording(targetWord, (jsonResult) =>
-        {
-            if (!string.IsNullOrEmpty(jsonResult))
-            {
-                Debug.Log($"Backend Cevabı ({targetWord}): {jsonResult}");
-                // Burada skora göre işlem yapılabilir
-            }
-            else
-            {
-                Debug.LogWarning("Ses analizi boş döndü.");
-            }
-        });
+        PronunciationManager.Instance.StopRecording(); 
     }
+}
 
     protected override async Task ApplyAssetSet(AssetSetDto assetSet) { await Task.Yield(); }
 }
