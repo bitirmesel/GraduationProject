@@ -4,22 +4,52 @@ namespace GraduationProject.Managers
 {
     public class UIPanelManager : MonoBehaviour
     {
-        // Sadece bir tane Instance tanımı olmalı
         public static UIPanelManager Instance;
 
+        [Header("Panel References")]
         [SerializeField] private GameObject victoryPopup; 
         [SerializeField] private GameObject retryPopup;
         [SerializeField] private GameObject pronunciationPanel;
 
-        // Sadece bir tane Awake metodu olmalı
         private void Awake()
         {
-            if (Instance == null) Instance = this;
-            else Destroy(gameObject);
+            if (Instance == null) 
+            {
+                Instance = this;
+                // Sahne geçişlerinde objenin korunmasını istiyorsan alttaki satırı açabilirsin
+                // DontDestroyOnLoad(gameObject); 
+            }
+            else 
+            {
+                Destroy(gameObject);
+            }
         }
 
-        public void ShowPronunciationPanel(bool show) => pronunciationPanel?.SetActive(show);
-        public void ShowVictoryPanel(bool show) => victoryPopup?.SetActive(show);
-        public void ShowRetryPanel(bool show) => retryPopup?.SetActive(show);
+        // Panelleri açıp kapatan metodlar
+        public void ShowPronunciationPanel(bool show) 
+        {
+            if (pronunciationPanel != null) pronunciationPanel.SetActive(show);
+            else Debug.LogError("PronunciationPanel referansı UIPanelManager'da eksik!");
+        }
+
+        public void ShowVictoryPanel(bool show) 
+        {
+            if (victoryPopup != null) victoryPopup.SetActive(show);
+            else Debug.LogError("VictoryPopup referansı UIPanelManager'da eksik!");
+        }
+
+        public void ShowRetryPanel(bool show) 
+        {
+            if (retryPopup != null) retryPopup.SetActive(show);
+            else Debug.LogError("RetryPopup referansı UIPanelManager'da eksik!");
+        }
+        
+        // Tüm panelleri tek seferde kapatmak için yardımcı metod (Opsiyonel)
+        public void HideAllPanels()
+        {
+            ShowPronunciationPanel(false);
+            ShowVictoryPanel(false);
+            ShowRetryPanel(false);
+        }
     }
 }
