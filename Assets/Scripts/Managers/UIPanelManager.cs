@@ -13,45 +13,90 @@ namespace GraduationProject.Managers
 
         private void Awake()
         {
+            // Singleton mantığı: Sahne yenilense bile taze bir instance oluşmasını sağla
             if (Instance == null)
             {
                 Instance = this;
-                // Sahne geçişlerinde objenin korunmasını istiyorsan alttaki satırı açabilirsin
-                // DontDestroyOnLoad(gameObject); 
             }
             else
             {
                 Destroy(gameObject);
+                return;
             }
 
-            // Sahne yeniden yüklendiğinde nesneleri tekrar bul
-            if (pronunciationPanel == null) pronunciationPanel = GameObject.Find("PronunciationPanel");
-
-            if (victoryPopup == null) victoryPopup = GameObject.Find("VictoryPopup");
-
-            if (retryPopup == null) retryPopup = GameObject.Find("RetryPopup");
+            RefreshReferences();
         }
 
-        // Panelleri açıp kapatan metodlar
+        private void Start()
+        {
+            RefreshReferences();
+        }
+
+        // --- EN KRİTİK METOT: SAHNE YENİLENDİĞİNDE ÇALIŞIR ---
+        public void RefreshReferences()
+        {
+            // Missing (ölü) referansları kontrol et ve hiyerarşiden bul
+            // GameObject.Find sadece aktif objeleri bulur. Kapalı objeleri bulmak için 
+            // transform.Find veya Resources.FindObjectsOfTypeAll kullanılır.
+
+            if (pronunciationPanel == null || pronunciationPanel.Equals(null))
+                pronunciationPanel = FindInactiveObject("PronunciationPanel");
+
+            if (victoryPopup == null || victoryPopup.Equals(null))
+                victoryPopup = FindInactiveObject("VictoryPopup");
+
+            if (retryPopup == null || retryPopup.Equals(null))
+                retryPopup = FindInactiveObject("RetryPopup");
+        }
+
+        // Kapalı (Inactive) olan panelleri bulabilen yardımcı fonksiyon
+        private GameObject FindInactiveObject(string objectName)
+        {
+            GameObject[] allObjects = Resources.FindObjectsOfTypeAll<GameObject>();
+            foreach (GameObject obj in allObjects)
+            {
+                // Sadece sahnedeki (dosyadaki değil) ve doğru isimdeki objeyi seç
+                if (obj.name == objectName && obj.hideFlags == HideFlags.None)
+                {
+                    return obj;
+                }
+            }
+            return null;
+        }
+
         public void ShowPronunciationPanel(bool show)
         {
-            if (pronunciationPanel != null) pronunciationPanel.SetActive(show);
-            else Debug.LogError("PronunciationPanel referansı UIPanelManager'da eksik!");
+            // Panel açılmadan hemen önce referansı son bir kez kontrol et
+            if (pronunciationPanel == null || pronunciationPanel.Equals(null))
+            {
+                // FindInactiveObject metodunu bir önceki mesajda vermiştik, onu kullanıyoruz
+                pronunciationPanel = FindInactiveObject("PronunciationPanel");
+            }
+
+            if (pronunciationPanel != null)
+            {
+                pronunciationPanel.SetActive(show);
+            }
+            else
+            {
+                Debug.LogError("PronunciationPanel hiyerarşide bulunamadı! İsim kontrolü yapın.");
+            }
         }
 
         public void ShowVictoryPanel(bool show)
         {
+            RefreshReferences();
             if (victoryPopup != null) victoryPopup.SetActive(show);
-            else Debug.LogError("VictoryPopup referansı UIPanelManager'da eksik!");
+            else Debug.LogError("VictoryPopup referansı bulunamadı!");
         }
 
         public void ShowRetryPanel(bool show)
         {
+            RefreshReferences();
             if (retryPopup != null) retryPopup.SetActive(show);
-            else Debug.LogError("RetryPopup referansı UIPanelManager'da eksik!");
+            else Debug.LogError("RetryPopup referansı bulunamadı!");
         }
 
-        // Tüm panelleri tek seferde kapatmak için yardımcı metod (Opsiyonel)
         public void HideAllPanels()
         {
             ShowPronunciationPanel(false);
@@ -59,10 +104,9 @@ namespace GraduationProject.Managers
             ShowRetryPanel(false);
         }
 
-        private void OnEnable() // Sahne yenilendiğinde veya obje aktif olduğunda çalışır
+        private void OnEnable()
         {
-            // Referansları her seferinde hiyerarşiden bul
-            if (pronunciationPanel == null) pronunciationPanel = GameObject.Find("PronunciationPanel");
+            RefreshReferences();
         }
     }
 }

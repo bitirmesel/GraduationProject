@@ -1,12 +1,16 @@
-using UnityEngine;
+
+using UnityEngine;              // Unity'nin temel kütüphanesi (GameObject, Transform vb. için)
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine.Networking;
-using UnityEngine.UI;
+using UnityEngine.Networking;   // API iletişimi için
+using UnityEngine.UI;           // Text, Image ve Buttonlar için
 using System;
 using System.Threading.Tasks;
-using GraduationProject.Models;
-using GraduationProject.Utilities;
+using GraduationProject.Models; // Modellerin (DTO) için
+using GraduationProject.Utilities; // WavUtility vb. için
+using UnityEngine.Android;      // Mikrofon izinleri için (Permission hatasını çözer)
+using Newtonsoft.Json;
+
 
 namespace GraduationProject.Managers
 {
@@ -36,6 +40,17 @@ namespace GraduationProject.Managers
             else Destroy(gameObject);
 
             if (Microphone.devices.Length > 0) _microphoneDevice = Microphone.devices[0];
+
+        }
+
+        private void Start()
+        {
+#if UNITY_ANDROID
+            if (!Permission.HasUserAuthorizedPermission(Permission.Microphone))
+            {
+                Permission.RequestUserPermission(Permission.Microphone);
+            }
+#endif
         }
 
         public void StartPronunciationSession(List<AssetItem> levelData)
@@ -45,6 +60,9 @@ namespace GraduationProject.Managers
             // 1. ADIM: Hafıza oyunundaki 12 kartı tamamen gizle
             GameObject memoryRoot = GameObject.Find("MemoryRoot");
             if (memoryRoot != null) memoryRoot.SetActive(false);
+
+            // Izgara konteynerini de bulup kapatmak iyi olabilir (MemoryGameManager referansına göre)
+            // Ancak MemoryGameManager.OnGameComplete içinde zaten kapatmıştık.
 
             StartSequence();
         }
@@ -57,48 +75,99 @@ namespace GraduationProject.Managers
 
                 // 2. ADIM: Telaffuz için tek bir kart oluştur ve merkeze yerleştir
                 GameObject activeCard = CreatePronunciationCard(asset);
-                activeCard.transform.position = focusPosition.position;
-                activeCard.transform.localScale = Vector3.one * 2.5f; // Kartı büyüt
+                if (activeCard != null)
+                {
+                    activeCard.transform.position = focusPosition.position;
+                    activeCard.transform.localScale = Vector3.one * 2.5f; // Kartı büyüt
+                }
 
                 // 3. ADIM: Kelimeyi seslendir
                 if (AudioManager.Instance != null)
                     await AudioManager.Instance.PlayVoiceOverAsync(asset.Key);
 
                 bool kelimeDogruMu = false;
+
+                // --- DÖNGÜ BAŞLIYOR ---
                 while (!kelimeDogruMu)
                 {
                     UpdateUI($"{asset.Key} demen bekleniyor...", "");
 
-                    // 4. ADIM: Mikrofon girişini bekle
+                    // 4. ADIM: Mikrofon girişini bekle (StopRecording çağrılana kadar burası bekler)
                     _currentApiTask = new TaskCompletionSource<string>();
                     string sonucJson = await _currentApiTask.Task;
 
-                    // API kontrolü (Örn: "isMatch":true)
-                    if (!string.IsNullOrEmpty(sonucJson) && sonucJson.Contains("\"isMatch\":true"))
+                    // --- PUAN KONTROLÜ (GÜNCELLENDİ) ---
+                    if (!string.IsNullOrEmpty(sonucJson))
                     {
-                        kelimeDogruMu = true;
-                        UpdateUI("Harika! Doğru bildin.", "");
-                        await Task.Delay(1000);
-                        Destroy(activeCard); // Doğru bilinince kartı yok et
+                        try
+                        {
+                            // JSON'ı modele çevir
+                            var response = JsonConvert.DeserializeObject<PronunciationResponseDto>(sonucJson);
+
+                            if (response != null && response.Score != null)
+                            {
+                                double puan = response.Score.OverallPoints;
+                                Debug.Log($"[Pronunciation] Gelen Puan: {puan}");
+
+                                // EŞİK DEĞER: 70 PUAN
+                                if (puan >= 70)
+                                {
+                                    kelimeDogruMu = true;
+                                    UpdateUI($"Harika! Puanın: {puan:F0}", "");
+
+                                    // Başarı sesi
+                                    if (AudioManager.Instance != null)
+                                        AudioManager.Instance.PlayEffect("CorrectSound"); // Varsa
+
+                                    await Task.Delay(1500); // 1.5 saniye bekle
+                                    if (activeCard != null) Destroy(activeCard); // Kartı yok et ve sıradakine geç
+                                }
+                                else
+                                {
+                                    UpdateUI($"Puanın: {puan:F0}. Tekrar dene!", "");
+
+                                    // Başarısızlık sesi ve kelimeyi tekrar hatırlat
+                                    if (AudioManager.Instance != null)
+                                    {
+                                        // AudioManager.Instance.PlayEffect("WrongSound");
+                                        await AudioManager.Instance.PlayVoiceOverAsync(asset.Key);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                UpdateUI("Sonuç okunamadı, tekrar dene.", "");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.LogError("JSON Parse Hatası: " + ex.Message);
+                            UpdateUI("Hata oluştu, tekrar dene.", "");
+                        }
                     }
                     else
                     {
-                        UpdateUI("Tekrar dene!", "");
-                        if (AudioManager.Instance != null)
-                            await AudioManager.Instance.PlayVoiceOverAsync(asset.Key);
+                        UpdateUI("Ses veya bağlantı hatası, tekrar dene.", "");
                     }
                 }
             }
 
-            // Tüm 6 kelime bitince
+            // Tüm kelimeler bitince
+            UpdateUI("Tüm kelimeler bitti!", "");
             if (UIPanelManager.Instance != null)
                 UIPanelManager.Instance.ShowVictoryPanel(true);
         }
 
         private GameObject CreatePronunciationCard(AssetItem asset)
         {
+            if (focusPosition == null)
+            {
+                Debug.LogError("FocusPosition atanmamış!");
+                return null;
+            }
+
             // 1. Prefab'dan taze bir kart kopyala
-            GameObject cardObj = Instantiate(cardPrefab, focusPosition.parent);
+            GameObject cardObj = Instantiate(cardPrefab, focusPosition.parent); // Parent'ı canvas/panel olsun diye
 
             // 2. Kartın üzerindeki MemoryCard scriptine eriş (Setup için)
             MemoryCard cardScript = cardObj.GetComponent<MemoryCard>();
@@ -125,7 +194,7 @@ namespace GraduationProject.Managers
             if (loadedSprite != null)
             {
                 // Kartı ön yüzü açık (flipped) ve doğru resimle hazırla
-                // CardBackSprite kısmına hafıza oyunundaki arka kapak resmini de verebilirsin
+                // CardBackSprite null olabilir çünkü bu kart hiç dönmeyecek
                 card.Setup(url.GetHashCode(), loadedSprite, null, null);
                 card.FlipOpen(); // Kartın resmini hemen göster
             }
@@ -134,6 +203,8 @@ namespace GraduationProject.Managers
         public void StartRecording()
         {
             if (_isRecording || string.IsNullOrEmpty(_microphoneDevice)) return;
+
+            // Unity Mikrofonu başlatır (maks 10 sn)
             _recordingClip = Microphone.Start(_microphoneDevice, false, 10, 44100);
             _isRecording = true;
             UpdateUI("Kaydediyor... Konuşun!", "");
@@ -142,28 +213,55 @@ namespace GraduationProject.Managers
         public void StopRecording()
         {
             if (!_isRecording) return;
+
             Microphone.End(_microphoneDevice);
             _isRecording = false;
+
+            UpdateUI("Analiz ediliyor...", "");
+
+            // Coroutine ile backend'e yolla
             StartCoroutine(SendAudioToBackend(_recordingClip, _activeTargetWord, (json) =>
             {
+                // Sonuç geldiğinde TaskCompletionSource'u tetikle
+                // Böylece StartSequence döngüsü kaldığı yerden devam eder
                 _currentApiTask?.TrySetResult(json);
             }));
         }
 
         private IEnumerator SendAudioToBackend(AudioClip clip, string textReference, Action<string> callback)
         {
+            if (clip == null) { yield break; }
+
             byte[] audioData = WavUtility.FromAudioClip(clip);
             WWWForm form = new WWWForm();
+
+            // --- DÜZELTME BURADA ---
+            // Sunucu kesinlikle "audioFile" istiyor
             form.AddBinaryData("audioFile", audioData, "recording.wav", "audio/wav");
+
             form.AddField("text", textReference);
 
             using (UnityWebRequest www = UnityWebRequest.Post(backendUrl, form))
             {
                 yield return www.SendWebRequest();
-                callback?.Invoke(www.result == UnityWebRequest.Result.Success ? www.downloadHandler.text : null);
+
+                if (www.result == UnityWebRequest.Result.Success)
+                {
+                    Debug.Log($"[API Başarılı]: {www.downloadHandler.text}");
+                    callback?.Invoke(www.downloadHandler.text);
+                }
+                else
+                {
+                    Debug.LogError($"[API Hatası] Kod: {www.responseCode} | Hata: {www.downloadHandler.text}");
+                    callback?.Invoke(null);
+                }
             }
         }
 
-        private void UpdateUI(string status, string result) { if (statusText != null) statusText.text = status; }
+        private void UpdateUI(string status, string result)
+        {
+            if (statusText != null) statusText.text = status;
+            Debug.Log($"[UI]: {status}");
+        }
     }
 }

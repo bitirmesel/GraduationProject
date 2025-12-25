@@ -172,45 +172,40 @@ public class MemoryGameManager : BaseGameManager
 
     // --- 4. OYUN BİTİŞİ VE TELAFFUZ BAŞLANGICI ---
     // --- 4. OYUN BİTİŞİ VE TELAFFUZ BAŞLANGICI ---
+    // MemoryGameManager.cs dosyasında:
+
     public async void OnGameComplete()
     {
         Debug.Log("[Game] Oyun tamamlandı. Telaffuz süreci başlıyor...");
 
-        if (AudioManager.Instance != null)
-            AudioManager.Instance.PlayEffect("CongratsEffect");
-
-        if (AudioManager.Instance != null)
-        {
-            await AudioManager.Instance.PlayVoiceOverAsync("Tebrik_Talimat");
-        }
-
+        // 1. Önce Paneli Aç (Mic butonu görünsün)
         if (UIPanelManager.Instance != null)
         {
             UIPanelManager.Instance.ShowPronunciationPanel(true);
+        }
 
-            if (PronunciationManager.Instance != null)
-            {
-                // HATA DÜZELTME: _levelAssetData List<AssetItem> tipindedir.
-                // PronunciationManager artık bu tipi bekleyecek şekilde güncellendi.
-                PronunciationManager.Instance.StartPronunciationSession(_levelAssetData);
-            }
+        // 2. KRİTİK EKSİK: PronunciationManager'a "Başla" komutunu ve verileri gönder!
+        // Eğer bu satır yoksa kart gelmez, oyun arkada açık kalır ve 'Aktif kelime yok' hatası alırsın.
+        if (PronunciationManager.Instance != null)
+        {
+            // _levelAssetData listesini (oynanan kartları) gönderiyoruz
+            PronunciationManager.Instance.StartPronunciationSession(_levelAssetData);
         }
         else
         {
-            Debug.LogError("UIPanelManager bulunamadı!");
+            Debug.LogError("PronunciationManager bulunamadı! Veri gönderilemiyor.");
         }
     }
-
     // --- 5. TELAFFUZ KONTROLÜ (UI'dan çağrılır) ---
-public void SubmitPronunciation(int assetIndex)
-{
-    // Artık targetWord veya callback göndermiyoruz.
-    // PronunciationManager.cs içindeki StopRecording() artık parametresizdir.
-    if (PronunciationManager.Instance != null)
+    public void SubmitPronunciation(int assetIndex)
     {
-        PronunciationManager.Instance.StopRecording(); 
+        // Artık targetWord veya callback göndermiyoruz.
+        // PronunciationManager.cs içindeki StopRecording() artık parametresizdir.
+        if (PronunciationManager.Instance != null)
+        {
+            PronunciationManager.Instance.StopRecording();
+        }
     }
-}
 
     protected override async Task ApplyAssetSet(AssetSetDto assetSet) { await Task.Yield(); }
 }
