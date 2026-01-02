@@ -27,12 +27,14 @@ namespace GraduationProject.Managers
             }
             else
             {
-                Destroy(gameObject);
+                Destroy(this);   // GameObject'i değil, sadece component'i öldür
+                return;
             }
 
             if (!string.IsNullOrEmpty(_baseUrl) && _baseUrl.EndsWith("/"))
                 _baseUrl = _baseUrl.TrimEnd('/');
         }
+
 
         // --- HATALI KISIM DÜZELTİLDİ ---
         public string GetBaseUrl()
@@ -115,7 +117,10 @@ namespace GraduationProject.Managers
             // Mock Data (Yedek)
             AssetSetDto mockData = new AssetSetDto
             {
-                assetSetId = 1, letterId = letterId, gameType = serverGameType, difficulty = difficulty,
+                assetSetId = 1,
+                letterId = letterId,
+                gameType = serverGameType,
+                difficulty = difficulty,
                 items = new List<AssetItemDto>()
             };
             for (int i = 1; i <= 5; i++) mockData.items.Add(new AssetItemDto { imageUrl = "", audioUrl = "" });
@@ -178,7 +183,7 @@ namespace GraduationProject.Managers
         // Bu metot şu an dummy (geçici) sonuç döndürüyor. Gerçek analiz PronunciationManager üzerinden yapılıyor.
         public async Task<PronunciationResult> CheckPronunciationAsync(byte[] audioData)
         {
-            await Task.Delay(100); 
+            await Task.Delay(100);
             return new PronunciationResult { CorrectWords = new List<string> { "kedi", "kuş", "kurbağa", "köpek", "koyun", "kartal" } };
         }
     }

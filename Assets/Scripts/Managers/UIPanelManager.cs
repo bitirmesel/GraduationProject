@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 namespace GraduationProject.Managers
 {
@@ -13,7 +14,7 @@ namespace GraduationProject.Managers
 
         private void Awake()
         {
-            // Singleton mantığı: Sahne yenilense bile taze bir instance oluşmasını sağla
+            // Singleton Yapılandırması
             if (Instance == null)
             {
                 Instance = this;
@@ -24,6 +25,7 @@ namespace GraduationProject.Managers
                 return;
             }
 
+            // Sahne başladığında referansları otomatik bul ve ata
             RefreshReferences();
         }
 
@@ -32,30 +34,31 @@ namespace GraduationProject.Managers
             RefreshReferences();
         }
 
-        // --- EN KRİTİK METOT: SAHNE YENİLENDİĞİNDE ÇALIŞIR ---
+        /// <summary>
+        /// Sahnede kapalı (inactive) olsalar dahi isimlerine göre objeleri bulur ve atar.
+        /// </summary>
         public void RefreshReferences()
         {
-            // Missing (ölü) referansları kontrol et ve hiyerarşiden bul
-            // GameObject.Find sadece aktif objeleri bulur. Kapalı objeleri bulmak için 
-            // transform.Find veya Resources.FindObjectsOfTypeAll kullanılır.
-
             if (pronunciationPanel == null || pronunciationPanel.Equals(null))
-                pronunciationPanel = FindInactiveObject("PronunciationPanel");
+                pronunciationPanel = FindInactiveObjectInScene("PronunciationPanel");
 
             if (victoryPopup == null || victoryPopup.Equals(null))
-                victoryPopup = FindInactiveObject("VictoryPopup");
+                victoryPopup = FindInactiveObjectInScene("VictoryPopup");
 
             if (retryPopup == null || retryPopup.Equals(null))
-                retryPopup = FindInactiveObject("RetryPopup");
+                retryPopup = FindInactiveObjectInScene("RetryPopup");
+
+            // Başarı durumunu kontrol et (Debug log)
+            if (pronunciationPanel != null) Debug.Log("[UIPanelManager] PronunciationPanel başarıyla bağlandı.");
         }
 
-        // Kapalı (Inactive) olan panelleri bulabilen yardımcı fonksiyon
-        private GameObject FindInactiveObject(string objectName)
+        private GameObject FindInactiveObjectInScene(string objectName)
         {
+            // Resources.FindObjectsOfTypeAll hem aktif hem pasif sahne objelerini bulur
             GameObject[] allObjects = Resources.FindObjectsOfTypeAll<GameObject>();
             foreach (GameObject obj in allObjects)
             {
-                // Sadece sahnedeki (dosyadaki değil) ve doğru isimdeki objeyi seç
+                // Sadece sahnedeki objeleri seç (Asset klasöründeki prefabları hariç tut)
                 if (obj.name == objectName && obj.hideFlags == HideFlags.None)
                 {
                     return obj;
@@ -66,12 +69,8 @@ namespace GraduationProject.Managers
 
         public void ShowPronunciationPanel(bool show)
         {
-            // Panel açılmadan hemen önce referansı son bir kez kontrol et
-            if (pronunciationPanel == null || pronunciationPanel.Equals(null))
-            {
-                // FindInactiveObject metodunu bir önceki mesajda vermiştik, onu kullanıyoruz
-                pronunciationPanel = FindInactiveObject("PronunciationPanel");
-            }
+            // Panel gösterilmeden önce referansı son kez kontrol et
+            if (pronunciationPanel == null) RefreshReferences();
 
             if (pronunciationPanel != null)
             {
@@ -79,22 +78,36 @@ namespace GraduationProject.Managers
             }
             else
             {
-                Debug.LogError("PronunciationPanel hiyerarşide bulunamadı! İsim kontrolü yapın.");
+                Debug.LogError($"[UIPanelManager] PronunciationPanel bulunamadı! Lütfen hiyerarşide isminin '{nameof(pronunciationPanel)}' olduğundan emin olun.");
             }
         }
 
         public void ShowVictoryPanel(bool show)
         {
-            RefreshReferences();
-            if (victoryPopup != null) victoryPopup.SetActive(show);
-            else Debug.LogError("VictoryPopup referansı bulunamadı!");
+            if (victoryPopup == null) RefreshReferences();
+
+            if (victoryPopup != null)
+            {
+                victoryPopup.SetActive(show);
+            }
+            else
+            {
+                Debug.LogError("[UIPanelManager] VictoryPopup referansı bulunamadı!");
+            }
         }
 
         public void ShowRetryPanel(bool show)
         {
-            RefreshReferences();
-            if (retryPopup != null) retryPopup.SetActive(show);
-            else Debug.LogError("RetryPopup referansı bulunamadı!");
+            if (retryPopup == null) RefreshReferences();
+
+            if (retryPopup != null)
+            {
+                retryPopup.SetActive(show);
+            }
+            else
+            {
+                Debug.LogError("[UIPanelManager] RetryPopup referansı bulunamadı!");
+            }
         }
 
         public void HideAllPanels()

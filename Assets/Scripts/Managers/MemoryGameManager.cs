@@ -174,28 +174,40 @@ public class MemoryGameManager : BaseGameManager
     // --- 4. OYUN BİTİŞİ VE TELAFFUZ BAŞLANGICI ---
     // MemoryGameManager.cs dosyasında:
 
-    public async void OnGameComplete()
+    // MemoryGameManager.cs (Satır 196 civarı)
+    // MemoryGameManager.cs (OnGameComplete içindeki ilgili bölüm)
+public async void OnGameComplete()
+{
+    Debug.Log("[Game] Oyun tamamlandı. Telaffuz süreci başlıyor...");
+
+    // Paneli UIPanelManager üzerinden aç (Hata korumalı)
+    if (UIPanelManager.Instance != null)
+        UIPanelManager.Instance.ShowPronunciationPanel(true);
+
+    // PronunciationManager'ı bulmak için en garanti yöntem:
+    PronunciationManager pm = PronunciationManager.Instance;
+    
+    if (pm == null)
     {
-        Debug.Log("[Game] Oyun tamamlandı. Telaffuz süreci başlıyor...");
-
-        // 1. Önce Paneli Aç (Mic butonu görünsün)
-        if (UIPanelManager.Instance != null)
+        // Kapalı (pasif) objeler dahil tüm sahnede ara
+        PronunciationManager[] found = Resources.FindObjectsOfTypeAll<PronunciationManager>();
+        if (found.Length > 0)
         {
-            UIPanelManager.Instance.ShowPronunciationPanel(true);
-        }
-
-        // 2. KRİTİK EKSİK: PronunciationManager'a "Başla" komutunu ve verileri gönder!
-        // Eğer bu satır yoksa kart gelmez, oyun arkada açık kalır ve 'Aktif kelime yok' hatası alırsın.
-        if (PronunciationManager.Instance != null)
-        {
-            // _levelAssetData listesini (oynanan kartları) gönderiyoruz
-            PronunciationManager.Instance.StartPronunciationSession(_levelAssetData);
-        }
-        else
-        {
-            Debug.LogError("PronunciationManager bulunamadı! Veri gönderilemiyor.");
+            pm = found[0];
+            pm.gameObject.SetActive(true); // Kapalıysa zorla aç!
+            PronunciationManager.Instance = pm; // Singleton'ı elinle tazele
         }
     }
+
+    if (pm != null)
+    {
+        pm.StartPronunciationSession(_levelAssetData);
+    }
+    else
+    {
+        Debug.LogError("KRİTİK HATA: PronunciationManager hiçbir yerde bulunamadı!");
+    }
+}
     // --- 5. TELAFFUZ KONTROLÜ (UI'dan çağrılır) ---
     public void SubmitPronunciation(int assetIndex)
     {
