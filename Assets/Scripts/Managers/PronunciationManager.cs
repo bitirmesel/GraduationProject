@@ -59,24 +59,20 @@ namespace GraduationProject.Managers
 
         private void CacheMicrophoneDevice()
         {
-            if (Microphone.devices.Length > 0) 
+            if (Microphone.devices.Length > 0)
                 _microphoneDevice = Microphone.devices[0];
         }
-
-        // =======================
-        // FLOW (DÖNGÜ) YÖNETİMİ
-        // =======================
 
         public void StartPronunciationSession(List<AssetItem> levelData)
         {
             if (levelData == null || levelData.Count == 0) return;
-            
-            if (UIPanelManager.Instance != null) 
+
+            if (UIPanelManager.Instance != null)
                 UIPanelManager.Instance.ShowPronunciationPanel(true);
 
             EnsureUIRefs();
             _levelAssets = new List<AssetItem>(levelData);
-            
+
             GameObject.Find("MemoryRoot")?.SetActive(false);
             StartSequence();
         }
@@ -88,34 +84,56 @@ namespace GraduationProject.Managers
 
             foreach (var asset in _levelAssets)
             {
-                _activeTargetWord = asset.Key;
-                GameObject activeCard = CreatePronunciationCard(asset);
+                string wordToProcess = asset.Key;
+                if (wordToProcess.ToLower() == "kopek") wordToProcess = "köpek";
+                if (wordToProcess.ToLower() == "kus") wordToProcess = "kuş";
+                if (wordToProcess.ToLower() == "kedi") wordToProcess = "kedi";
+                if (wordToProcess.ToLower() == "kurbaga") wordToProcess = "kurbağa";
 
+                _activeTargetWord = wordToProcess;
+
+                GameObject activeCard = CreatePronunciationCard(asset);
                 if (activeCard != null && focusPosition != null)
                 {
                     activeCard.transform.position = focusPosition.position;
                     activeCard.transform.localScale = Vector3.one * 2.5f;
                 }
 
-                if (AudioManager.Instance != null) 
+                if (AudioManager.Instance != null)
                     await AudioManager.Instance.PlayVoiceOverAsync(asset.Key);
 
                 bool kelimeDogruMu = false;
+
                 while (!kelimeDogruMu)
                 {
-                    UpdateUI($"{asset.Key} demen bekleniyor...", "");
-                    
+                    UpdateUI($"{wordToProcess} demen bekleniyor...", "");
+
                     _currentApiTask = new TaskCompletionSource<string>();
                     string sonucJson = await _currentApiTask.Task;
 
-                    if (string.IsNullOrEmpty(sonucJson)) continue;
+                    // --- KRİTİK DEĞİŞİKLİK: HERHANGİ BİR HATA DURUMUNDA SKORU 0 SAY VE DEVAM ET ---
+                    if (string.IsNullOrEmpty(sonucJson))
+                    {
+                        Debug.LogWarning("[Pronunciation] API Hata döndü veya kilitlenme önlendi. Skor 0 sayılıyor.");
+                        UpdateUI("Puanın: 0. Lütfen tekrar dene!", "");
+                        continue; 
+                    }
 
                     try
                     {
-                        var response = JsonConvert.DeserializeObject<PronunciationResponseDto>(sonucJson);
-                        if (response?.Score == null) continue;
+                        var responseList = JsonConvert.DeserializeObject<List<PronunciationResponseDto>>(sonucJson);
 
-                        double puan = response.Score.OverallPoints;
+                        if (responseList == null || responseList.Count <= 1 || responseList[1].OverallResult == null || responseList[1].OverallResult.Count == 0)
+                        {
+                            UpdateUI("Puanın: 0. Tekrar dene!", "");
+                            continue;
+                        }
+
+                        var resultData = responseList[1].OverallResult[0];
+                        double puan = resultData.overall_points;
+
+                        Debug.Log($"[Pronunciation] Skor: {puan} | Kelime: {wordToProcess}");
+
                         if (puan >= 70)
                         {
                             kelimeDogruMu = true;
@@ -126,29 +144,27 @@ namespace GraduationProject.Managers
                         }
                         else
                         {
-                            UpdateUI($"Puanın: {puan:F0}. Tekrar dene!", "");
-                            if (AudioManager.Instance != null) await AudioManager.Instance.PlayVoiceOverAsync(asset.Key);
+                            UpdateUI($"Puanın düşük: {puan:F0}. Tekrar dene!", "");
                         }
                     }
                     catch (Exception ex)
                     {
-                        Debug.LogError("JSON Hatası: " + ex.Message);
+                        Debug.LogError("[JSON Error] " + ex.Message);
+                        UpdateUI("Puanın: 0. Tekrar dene!", "");
                     }
                 }
             }
+
             UpdateUI("Tebrikler! Hepsi bitti.", "");
             if (UIPanelManager.Instance != null) UIPanelManager.Instance.ShowVictoryPanel(true);
         }
 
-        // =======================
-        // KAYIT VE ANALİZ (MICROPHONE)
-        // =======================
-
         public void StartRecording()
         {
             if (_isRecording) return;
+            if (Microphone.IsRecording(_microphoneDevice)) Microphone.End(_microphoneDevice);
             if (string.IsNullOrEmpty(_microphoneDevice)) CacheMicrophoneDevice();
-            
+
             _recordingClip = Microphone.Start(_microphoneDevice, false, 10, 16000);
             _isRecording = true;
             UpdateUI("Kaydediyor... Konuş!", "");
@@ -162,76 +178,56 @@ namespace GraduationProject.Managers
             Microphone.End(_microphoneDevice);
             _isRecording = false;
 
+            // Task'ı her koşulda sonlandıracak ve kilitlenmeyi önleyecek yardımcı metod
+            System.Action<string> safeCallback = (json) =>
+            {
+                if (_currentApiTask != null && !_currentApiTask.Task.IsCompleted)
+                {
+                    _currentApiTask.TrySetResult(json);
+                }
+            };
+
             if (samplePos <= 0)
             {
-                _currentApiTask?.TrySetResult(null);
+                UpdateUI("Ses alınamadı!", "");
+                safeCallback(""); 
                 return;
             }
 
-            float[] samples = new float[samplePos * _recordingClip.channels];
-            _recordingClip.GetData(samples, 0);
-
-            // Mono ve 16k kontrolü (WAV Header için sabitliyoruz)
-            UpdateUI("Analiz ediliyor...", "");
-            StartCoroutine(SendAudioToBackend(samples, 16000, _activeTargetWord, (json) =>
+            try
             {
-                _currentApiTask?.TrySetResult(json);
-            }));
+                byte[] wavData = WavEncoder.FromAudioClip(_recordingClip, samplePos);
+                UpdateUI("Analiz ediliyor...", "");
+                StartCoroutine(SendAudioToBackend(wavData, _activeTargetWord, safeCallback));
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError("Kayıt işleme hatası: " + ex.Message);
+                safeCallback(""); 
+            }
         }
 
-        private IEnumerator SendAudioToBackend(float[] soundData, int frequency, string textReference, Action<string> callback)
+        private IEnumerator SendAudioToBackend(byte[] wavData, string textReference, Action<string> callback)
         {
-            byte[] wavData = EncodeAsWAV(soundData, frequency, 1);
+            List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
+            formData.Add(new MultipartFormFileSection("audioFile", wavData, "recording.wav", "audio/wav"));
+            formData.Add(new MultipartFormDataSection("text", textReference));
 
-            WWWForm form = new WWWForm();
-            form.AddBinaryData("audioFile", wavData, "recording.wav", "audio/wav");
-            form.AddField("text", textReference);
-
-            using (UnityWebRequest www = UnityWebRequest.Post(backendUrl, form))
+            using (UnityWebRequest www = UnityWebRequest.Post(backendUrl, formData))
             {
                 yield return www.SendWebRequest();
-
+                
+                // --- BURASI KRİTİK: HATA NE OLURSA OLSUN KİLİTLENMEYİ ÖNLEMEK İÇİN BOŞ STRING DÖN ---
                 if (www.result == UnityWebRequest.Result.Success)
                 {
                     callback?.Invoke(www.downloadHandler.text);
                 }
                 else
                 {
-                    Debug.LogError($"API Hatası: {www.error}");
-                    UpdateUI("Hata: " + www.error, "");
-                    callback?.Invoke(null);
+                    // HTTP 400, 500 veya internet hatası fark etmez, burası çalışır
+                    Debug.LogWarning($"[Backend Hatası] Kod: {www.responseCode}. Skor 0 sayılıyor.");
+                    callback?.Invoke(""); 
                 }
-            }
-        }
-
-        // =======================
-        // YARDIMCI METOTLAR (WAV & UI)
-        // =======================
-
-        private byte[] EncodeAsWAV(float[] samples, int frequency, int channels)
-        {
-            using (var ms = new System.IO.MemoryStream())
-            using (var writer = new System.IO.BinaryWriter(ms))
-            {
-                writer.Write(System.Text.Encoding.ASCII.GetBytes("RIFF"));
-                writer.Write(36 + samples.Length * 2);
-                writer.Write(System.Text.Encoding.ASCII.GetBytes("WAVE"));
-                writer.Write(System.Text.Encoding.ASCII.GetBytes("fmt "));
-                writer.Write(16);
-                writer.Write((short)1);
-                writer.Write((short)channels);
-                writer.Write(frequency);
-                writer.Write(frequency * channels * 2);
-                writer.Write((short)(channels * 2));
-                writer.Write((short)16);
-                writer.Write(System.Text.Encoding.ASCII.GetBytes("data"));
-                writer.Write(samples.Length * 2);
-
-                foreach (var sample in samples)
-                {
-                    writer.Write((short)(Mathf.Clamp(sample, -1f, 1f) * 32767f));
-                }
-                return ms.ToArray();
             }
         }
 

@@ -16,8 +16,9 @@ public static class WavEncoder
         int frequency = clip.frequency;
 
         // Clip’ten float sample’ları al
+        // WavEncoder.cs içinde FromAudioClip metodunu şuna benzet:
         float[] samples = new float[lengthSamplesPerChannel * channels];
-        clip.GetData(samples, 0);
+        clip.GetData(samples, 0); // lengthSamplesPerChannel kadar veriyi 0. indexten itibaren alır
 
         // float [-1,1] -> PCM16 short
         byte[] pcm16 = new byte[samples.Length * 2];
