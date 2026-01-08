@@ -780,8 +780,8 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 217897559}
-  - {fileID: 1788291946}
   - {fileID: 71062348}
+  - {fileID: 1788291946}
   - {fileID: 603186736}
   - {fileID: 1372093897}
   - {fileID: 1898151067}
@@ -1048,6 +1048,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 89a4b824ff2333a44909ebbe9c3f211a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  pressedScale: {x: 1.2, y: 1.2, z: 1.2}
 --- !u!1 &1196441134
 GameObject:
   m_ObjectHideFlags: 0
@@ -1248,14 +1249,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c56c7e3045e537a4bb68daafdb37be54, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  api: {fileID: 0}
-  pronunciationApi: {fileID: 0}
   backendUrl: https://backendapi-8nfn.onrender.com/api/pronunciation/check
   statusText: {fileID: 1568924078}
   focusPosition: {fileID: 1996423256}
   cardParent: {fileID: 0}
   cardPrefab: {fileID: 4687923300526600101, guid: 77bb4161107b5244ca33a5325d77b4ff, type: 3}
-  verboseLogs: 1
 --- !u!114 &1365765979
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1321,7 +1319,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -5, y: -14.999939}
+  m_AnchoredPosition: {x: -5, y: -15}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1372093898
@@ -1582,7 +1580,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 7, y: -388}
+  m_AnchoredPosition: {x: 7, y: -471}
   m_SizeDelta: {x: 878.5618, y: 75}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1568924078
@@ -1639,7 +1637,7 @@ MonoBehaviour:
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 0
-  m_HorizontalAlignment: 1
+  m_HorizontalAlignment: 2
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0

@@ -73,7 +73,9 @@ namespace GraduationProject.Managers
             EnsureUIRefs();
             _levelAssets = new List<AssetItem>(levelData);
 
-            GameObject.Find("MemoryRoot")?.SetActive(false);
+            GameObject gridContainer = GameObject.Find("GridContainer");
+            if (gridContainer != null) gridContainer.SetActive(false);
+            
             StartSequence();
         }
 
@@ -116,7 +118,7 @@ namespace GraduationProject.Managers
                     {
                         Debug.LogWarning("[Pronunciation] API Hata döndü veya kilitlenme önlendi. Skor 0 sayılıyor.");
                         UpdateUI("Puanın: 0. Lütfen tekrar dene!", "");
-                        continue; 
+                        continue;
                     }
 
                     try
@@ -155,7 +157,6 @@ namespace GraduationProject.Managers
                 }
             }
 
-            UpdateUI("Tebrikler! Hepsi bitti.", "");
             if (UIPanelManager.Instance != null) UIPanelManager.Instance.ShowVictoryPanel(true);
         }
 
@@ -190,7 +191,7 @@ namespace GraduationProject.Managers
             if (samplePos <= 0)
             {
                 UpdateUI("Ses alınamadı!", "");
-                safeCallback(""); 
+                safeCallback("");
                 return;
             }
 
@@ -203,7 +204,7 @@ namespace GraduationProject.Managers
             catch (System.Exception ex)
             {
                 Debug.LogError("Kayıt işleme hatası: " + ex.Message);
-                safeCallback(""); 
+                safeCallback("");
             }
         }
 
@@ -216,7 +217,7 @@ namespace GraduationProject.Managers
             using (UnityWebRequest www = UnityWebRequest.Post(backendUrl, formData))
             {
                 yield return www.SendWebRequest();
-                
+
                 // --- BURASI KRİTİK: HATA NE OLURSA OLSUN KİLİTLENMEYİ ÖNLEMEK İÇİN BOŞ STRING DÖN ---
                 if (www.result == UnityWebRequest.Result.Success)
                 {
@@ -226,7 +227,7 @@ namespace GraduationProject.Managers
                 {
                     // HTTP 400, 500 veya internet hatası fark etmez, burası çalışır
                     Debug.LogWarning($"[Backend Hatası] Kod: {www.responseCode}. Skor 0 sayılıyor.");
-                    callback?.Invoke(""); 
+                    callback?.Invoke("");
                 }
             }
         }
