@@ -19,7 +19,11 @@ public class SelectionController : MonoBehaviour
 
     private async void Start()
     {
-        // Test için PlayerID 1 yapıyoruz
+        // --- KRİTİK EKLEME: Butonları LevelMapScene'e yönlendirir ---
+        AutoMapAndUnlockButtons();
+        // ---------------------------------------------------------
+
+        // Mevcut kodun devam ediyor
         if (GameContext.PlayerId <= 0) GameContext.PlayerId = 1;
 
         var tasks = await APIManager.Instance.GetTasksAsync(GameContext.PlayerId);
@@ -28,8 +32,10 @@ public class SelectionController : MonoBehaviour
             Debug.Log($"BAŞARILI: {tasks.Count} adet görev bulundu.");
         else
             Debug.LogError("HATA: Görev listesi boş döndü. Backend veritabanını kontrol et!");
-    }
 
+        // Bildirimleri kontrol etmeyi unutma
+        await CheckNotifications();
+    }
     private async Task CheckNotifications()
     {
         if (notificationBadge == null)

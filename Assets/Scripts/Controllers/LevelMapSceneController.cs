@@ -28,6 +28,14 @@ public class LevelMapSceneController : MonoBehaviour
 
     private void Start()
     {
+        GameObject backBtnObj = GameObject.Find("BackButton");
+        if (backBtnObj != null)
+        {
+            Button btn = backBtnObj.GetComponent<Button>();
+            btn.onClick.RemoveAllListeners(); // Eski hatalı bağlantıları sil
+            // DontDestroyOnLoad ile gelen navigator instance'ına bağla
+            btn.onClick.AddListener(() => SceneNavigator.Instance.GoToSelection());
+        }
         // 2. DEĞİŞİKLİK: Butonların gönderdiği isimleri Türkçe yapıyoruz
         // Backend'deki 'game_types' tablosunda isimler muhtemelen "Hece", "Kelime", "Cümle" olarak kayıtlı.
 

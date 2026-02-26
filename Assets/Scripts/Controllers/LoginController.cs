@@ -88,7 +88,7 @@ namespace GraduationProject.Controllers
                 Debug.Log($"[LOGIN] Giriş Başarılı! PlayerId: {GameContext.PlayerId}");
 
                 // Bir sonraki sahneye geç
-                SceneManager.LoadScene("SelectionScene");
+                SceneManager.LoadScene("NotificationScene");
             }
             catch (Exception ex)
             {
