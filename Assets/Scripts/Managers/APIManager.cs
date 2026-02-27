@@ -84,8 +84,14 @@ namespace GraduationProject.Managers
             string url = $"{_baseUrl}/api/gameconfig/{gameId}/{letterId}";
             string json = await SendGetRequest(url, false);
 
-            if (string.IsNullOrEmpty(json)) return null;
-            try { return JsonConvert.DeserializeObject<GameAssetConfig>(json); }
+            if (string.IsNullOrEmpty(json)) 
+                return null;
+
+            try
+            {
+                // Backend doğrudan GameAssetConfig şemasına uyan JSON döner
+                return JsonConvert.DeserializeObject<GameAssetConfig>(json);
+            }
             catch (Exception ex)
             {
                 Debug.LogError("[APIManager] GameConfig parse hatası: " + ex.Message);

@@ -4,20 +4,23 @@ using Newtonsoft.Json;
 namespace GraduationProject.Models
 {
     [System.Serializable]
-    public class GameAssetConfig
-    {
-        [JsonProperty("configId")]
-        public string ConfigId { get; set; }
+public class GameAssetConfig
+{
+    [JsonProperty("configId")]
+    public string ConfigId { get; set; }
 
-        [JsonProperty("baseUrl")]
-        public string BaseUrl { get; set; }
+    [JsonProperty("baseUrl")]
+    public string BaseUrl { get; set; }
 
-        [JsonProperty("audioBaseUrl")]
-        public string AudioBaseUrl { get; set; }
+    [JsonProperty("audioBaseUrl")]
+    public string AudioBaseUrl { get; set; }
 
-        [JsonProperty("items")]
-        public List<AssetItem> Items { get; set; }
-    }
+    [JsonProperty("items")]
+    public List<AssetItem> Items { get; set; }
+
+    [JsonProperty("assetJson")]
+    public string AssetJson { get; set; }
+}
 
     [System.Serializable]
     public class AssetItem

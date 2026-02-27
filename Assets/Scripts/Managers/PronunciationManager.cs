@@ -33,6 +33,7 @@ namespace GraduationProject.Managers
         private bool _isRecording;
 
         private List<AssetItem> _levelAssets = new List<AssetItem>();
+        private string _imageBaseUrl;
         private string _audioBaseUrl;
         private TaskCompletionSource<string> _currentApiTask;
         private string _activeTargetWord;
@@ -50,6 +51,7 @@ namespace GraduationProject.Managers
 
         private void Start()
         {
+            Debug.Log("[PronunciationManager] Start() çalıştı.");
 #if UNITY_ANDROID
             if (!Permission.HasUserAuthorizedPermission(Permission.Microphone))
             {
@@ -57,6 +59,18 @@ namespace GraduationProject.Managers
             }
 #endif
             CacheMicrophoneDevice();
+
+            // Sahnede Inspector'dan bağlanmamışsa bile biz kodla zorluyoruz
+            if (listenButton != null)
+            {
+                Debug.Log("[PronunciationManager] listenButton REFERANSI BULUNDU! Koda onClick Event'i ekleniyor.");
+                listenButton.onClick.RemoveAllListeners();
+                listenButton.onClick.AddListener(PlayCurrentWordAudio);
+            }
+            else
+            {
+                Debug.LogError("[PronunciationManager] HATA: listenButton REFERANSI NULL! Lütfen Inspector'dan butonu sürükleyin.");
+            }
         }
 
         private void CacheMicrophoneDevice()
@@ -65,8 +79,10 @@ namespace GraduationProject.Managers
                 _microphoneDevice = Microphone.devices[0];
         }
 
-        public void StartPronunciationSession(List<AssetItem> levelData, string audioBaseUrl = null)
+        public void StartPronunciationSession(List<AssetItem> levelData, string imageBaseUrl, string audioBaseUrl = null)
         {
+            Debug.Log($"[PronunciationManager] Oturum Başlatılıyor... Gelen imageBaseUrl: '{imageBaseUrl}', audioBaseUrl: '{audioBaseUrl}', Liste uzunluğu: {levelData?.Count}");
+            
             if (levelData == null || levelData.Count == 0) return;
 
             if (UIPanelManager.Instance != null)
@@ -74,6 +90,7 @@ namespace GraduationProject.Managers
 
             EnsureUIRefs();
             _levelAssets = new List<AssetItem>(levelData);
+            _imageBaseUrl = imageBaseUrl;
             _audioBaseUrl = audioBaseUrl;
 
             GameObject gridContainer = GameObject.Find("GridContainer");
@@ -180,7 +197,15 @@ namespace GraduationProject.Managers
         // UI'daki "Dinle" butonundan çağrılır — aktif kelimenin sesini tekrar çalar
         public async void PlayCurrentWordAudio()
         {
-            if (string.IsNullOrEmpty(_audioBaseUrl)) return;
+            Debug.Log("[PlayCurrentWordAudio] --- BUTONA BASILDI VE METOT TETIKLENDI ---");
+
+            if (string.IsNullOrEmpty(_audioBaseUrl))
+            {
+                Debug.LogWarning("[PlayCurrentWordAudio] HATA: _audioBaseUrl boş!");
+                return;
+            }
+
+            Debug.Log($"[PlayCurrentWordAudio] Hedef Kelime aranıyor: {_activeTargetWord}");
 
             // _levelAssets içinde şu an sırası gelen item'ı bul
             // _activeTargetWord kelime adını tutuyor (ör: "kedi", "kopek")
@@ -191,9 +216,20 @@ namespace GraduationProject.Managers
                        || normalized == _activeTargetWord?.ToLower();
             });
 
-            if (currentItem == null || string.IsNullOrEmpty(currentItem.Audio)) return;
+            if (currentItem == null)
+            {
+                Debug.LogWarning($"[PlayCurrentWordAudio] HATA: '{_activeTargetWord}' kelimesi JSON listesinde bulunamadı!");
+                return;
+            }
+            if (string.IsNullOrEmpty(currentItem.Audio))
+            {
+                Debug.LogWarning($"[PlayCurrentWordAudio] '{_activeTargetWord}' için JSON'da ses dosyası ismi (audio) atanmamış veya null!");
+                return;
+            }
 
             string fullAudioUrl = _audioBaseUrl + currentItem.Audio;
+            Debug.Log($"[PlayCurrentWordAudio] İndirilecek Ses Yolu: {fullAudioUrl}");
+            
             AudioClip clip = await AssetLoader.Instance.GetAudioAsync(fullAudioUrl, currentItem.Audio);
 
             if (clip != null)
@@ -201,10 +237,19 @@ namespace GraduationProject.Managers
                 AudioSource audioSource = GetComponent<AudioSource>();
                 if (audioSource != null)
                 {
+                    Debug.Log("[PlayCurrentWordAudio] Ses çalınıyor!");
                     audioSource.Stop(); // Önceki ses varsa durdur
                     audioSource.clip = clip;
                     audioSource.Play();
                 }
+                else
+                {
+                    Debug.LogError("[PlayCurrentWordAudio] HATA: PronunciationManager üzerinde AudioSource componenti yok! Ses çalınamıyor.");
+                }
+            }
+            else
+            {
+                Debug.LogError("[PlayCurrentWordAudio] HATA: Ses dosyası AssetLoader'dan alınamadı.");
             }
         }
 
@@ -300,7 +345,13 @@ namespace GraduationProject.Managers
             MemoryCard cardScript = cardObj.GetComponent<MemoryCard>();
             if (cardScript != null)
             {
-                string fullUrl = APIManager.Instance.GetBaseUrl() + asset.File;
+                if (string.IsNullOrEmpty(_imageBaseUrl))
+                {
+                    Debug.LogError("[PronunciationManager] HATA: _imageBaseUrl boş, kart görseli yüklenemiyor.");
+                    return cardObj;
+                }
+
+                string fullUrl = _imageBaseUrl + asset.File;
                 StartCoroutine(LoadCardSprite(cardScript, fullUrl, asset.File));
             }
             return cardObj;
