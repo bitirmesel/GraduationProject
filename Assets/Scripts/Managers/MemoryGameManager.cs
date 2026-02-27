@@ -21,6 +21,7 @@ public class MemoryGameManager : BaseGameManager
     // --- KELİME DATASI ---
     // API'den gelen orijinal item listesi (timsah, kedi vb.) burada saklanır.
     private List<AssetItem> _levelAssetData = new List<AssetItem>();
+    private string _audioBaseUrl; // Ses dosyaları için temel URL
 
     // Veriler
     private Sprite _cardBackSprite;
@@ -61,6 +62,7 @@ public class MemoryGameManager : BaseGameManager
         }
 
         _cardBackSprite = null;
+        _audioBaseUrl = config.AudioBaseUrl; // Ses URL'ini sakla
 
         // --- DATA YÜKLEME ---
         if (config.Items != null)
@@ -81,6 +83,13 @@ public class MemoryGameManager : BaseGameManager
                         _faceSprites.Add(sprite);
                         // Telaffuz aşamasında kullanılacak datayı sakla
                         _levelAssetData.Add(item);
+
+                        // Ses dosyasını önceden cache'e al (pronunciation anında hazır olsun)
+                        if (!string.IsNullOrEmpty(item.Audio) && !string.IsNullOrEmpty(_audioBaseUrl))
+                        {
+                            string fullAudioUrl = _audioBaseUrl + item.Audio;
+                            await AssetLoader.Instance.GetAudioAsync(fullAudioUrl, item.Audio);
+                        }
                     }
                 }
             }
@@ -201,7 +210,7 @@ public async void OnGameComplete()
 
     if (pm != null)
     {
-        pm.StartPronunciationSession(_levelAssetData);
+        pm.StartPronunciationSession(_levelAssetData, _audioBaseUrl);
     }
     else
     {

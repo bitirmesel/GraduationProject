@@ -26,12 +26,14 @@ namespace GraduationProject.Managers
         [SerializeField] private RectTransform focusPosition;
         [SerializeField] private Transform cardParent;
         [SerializeField] private GameObject cardPrefab;
+        [SerializeField] private UnityEngine.UI.Button listenButton; // 🔊 Dinle butonu
 
         private AudioClip _recordingClip;
         private string _microphoneDevice;
         private bool _isRecording;
 
         private List<AssetItem> _levelAssets = new List<AssetItem>();
+        private string _audioBaseUrl;
         private TaskCompletionSource<string> _currentApiTask;
         private string _activeTargetWord;
 
@@ -63,7 +65,7 @@ namespace GraduationProject.Managers
                 _microphoneDevice = Microphone.devices[0];
         }
 
-        public void StartPronunciationSession(List<AssetItem> levelData)
+        public void StartPronunciationSession(List<AssetItem> levelData, string audioBaseUrl = null)
         {
             if (levelData == null || levelData.Count == 0) return;
 
@@ -72,6 +74,7 @@ namespace GraduationProject.Managers
 
             EnsureUIRefs();
             _levelAssets = new List<AssetItem>(levelData);
+            _audioBaseUrl = audioBaseUrl;
 
             GameObject gridContainer = GameObject.Find("GridContainer");
             if (gridContainer != null) gridContainer.SetActive(false);
@@ -101,8 +104,22 @@ namespace GraduationProject.Managers
                     activeCard.transform.localScale = Vector3.one * 2.5f;
                 }
 
-                if (AudioManager.Instance != null)
-                    await AudioManager.Instance.PlayVoiceOverAsync(asset.Key);
+                // Ses dosyasını Cloudinary'den yükle ve çal
+                if (!string.IsNullOrEmpty(asset.Audio) && !string.IsNullOrEmpty(_audioBaseUrl))
+                {
+                    string fullAudioUrl = _audioBaseUrl + asset.Audio;
+                    AudioClip voiceClip = await AssetLoader.Instance.GetAudioAsync(fullAudioUrl, asset.Audio);
+                    if (voiceClip != null)
+                    {
+                        AudioSource audioSource = GetComponent<AudioSource>();
+                        if (audioSource != null)
+                        {
+                            audioSource.clip = voiceClip;
+                            audioSource.Play();
+                            while (audioSource.isPlaying) await Task.Yield();
+                        }
+                    }
+                }
 
                 bool kelimeDogruMu = false;
 
@@ -160,11 +177,45 @@ namespace GraduationProject.Managers
             if (UIPanelManager.Instance != null) UIPanelManager.Instance.ShowVictoryPanel(true);
         }
 
+        // UI'daki "Dinle" butonundan çağrılır — aktif kelimenin sesini tekrar çalar
+        public async void PlayCurrentWordAudio()
+        {
+            if (string.IsNullOrEmpty(_audioBaseUrl)) return;
+
+            // _levelAssets içinde şu an sırası gelen item'ı bul
+            // _activeTargetWord kelime adını tutuyor (ör: "kedi", "kopek")
+            AssetItem currentItem = _levelAssets.Find(a =>
+            {
+                string normalized = a.Key.ToLower();
+                return _activeTargetWord != null && _activeTargetWord.ToLower().StartsWith(normalized)
+                       || normalized == _activeTargetWord?.ToLower();
+            });
+
+            if (currentItem == null || string.IsNullOrEmpty(currentItem.Audio)) return;
+
+            string fullAudioUrl = _audioBaseUrl + currentItem.Audio;
+            AudioClip clip = await AssetLoader.Instance.GetAudioAsync(fullAudioUrl, currentItem.Audio);
+
+            if (clip != null)
+            {
+                AudioSource audioSource = GetComponent<AudioSource>();
+                if (audioSource != null)
+                {
+                    audioSource.Stop(); // Önceki ses varsa durdur
+                    audioSource.clip = clip;
+                    audioSource.Play();
+                }
+            }
+        }
+
         public void StartRecording()
         {
             if (_isRecording) return;
             if (Microphone.IsRecording(_microphoneDevice)) Microphone.End(_microphoneDevice);
             if (string.IsNullOrEmpty(_microphoneDevice)) CacheMicrophoneDevice();
+
+            // Kayıt süresince Dinle butonunu kapat
+            if (listenButton != null) listenButton.interactable = false;
 
             _recordingClip = Microphone.Start(_microphoneDevice, false, 10, 16000);
             _isRecording = true;
@@ -174,6 +225,9 @@ namespace GraduationProject.Managers
         public void StopRecording()
         {
             if (!_isRecording) return;
+
+            // Kayıt bitince Dinle butonunu geri aç
+            if (listenButton != null) listenButton.interactable = true;
 
             int samplePos = Microphone.GetPosition(_microphoneDevice);
             Microphone.End(_microphoneDevice);
