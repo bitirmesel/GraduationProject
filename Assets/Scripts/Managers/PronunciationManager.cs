@@ -208,12 +208,13 @@ namespace GraduationProject.Managers
             Debug.Log($"[PlayCurrentWordAudio] Hedef Kelime aranıyor: {_activeTargetWord}");
 
             // _levelAssets içinde şu an sırası gelen item'ı bul
-            // _activeTargetWord kelime adını tutuyor (ör: "kedi", "kopek")
+            // _activeTargetWord ekranda aksanlı (ör: "köpek"), JSON'daki key ise düz (ör: "kopek")
+            string targetKey = NormalizeKey(_activeTargetWord);
             AssetItem currentItem = _levelAssets.Find(a =>
             {
-                string normalized = a.Key.ToLower();
-                return _activeTargetWord != null && _activeTargetWord.ToLower().StartsWith(normalized)
-                       || normalized == _activeTargetWord?.ToLower();
+                string normalized = NormalizeKey(a.Key);
+                return !string.IsNullOrEmpty(targetKey) &&
+                       (targetKey.StartsWith(normalized) || normalized == targetKey);
             });
 
             if (currentItem == null)
@@ -277,10 +278,13 @@ namespace GraduationProject.Managers
             int samplePos = Microphone.GetPosition(_microphoneDevice);
             Microphone.End(_microphoneDevice);
             _isRecording = false;
+            float stopRecordingTime = Time.realtimeSinceStartup;
 
             // Task'ı her koşulda sonlandıracak ve kilitlenmeyi önleyecek yardımcı metod
             System.Action<string> safeCallback = (json) =>
             {
+                float callbackTime = Time.realtimeSinceStartup;
+                Debug.Log($"[PronunciationTiming] Callback alındı, toplam süre (StopRecording->Callback): {callbackTime - stopRecordingTime:F3} sn");
                 if (_currentApiTask != null && !_currentApiTask.Task.IsCompleted)
                 {
                     _currentApiTask.TrySetResult(json);
@@ -296,7 +300,11 @@ namespace GraduationProject.Managers
 
             try
             {
+                float encodeStart = Time.realtimeSinceStartup;
                 byte[] wavData = WavEncoder.FromAudioClip(_recordingClip, samplePos);
+                float encodeEnd = Time.realtimeSinceStartup;
+                Debug.Log($"[PronunciationTiming] WAV encode süresi: {encodeEnd - encodeStart:F3} sn, örnek sayısı: {samplePos}");
+
                 UpdateUI("Analiz ediliyor...", "");
                 StartCoroutine(SendAudioToBackend(wavData, _activeTargetWord, safeCallback));
             }
@@ -309,6 +317,9 @@ namespace GraduationProject.Managers
 
         private IEnumerator SendAudioToBackend(byte[] wavData, string textReference, Action<string> callback)
         {
+            float requestStart = Time.realtimeSinceStartup;
+            Debug.Log($"[PronunciationTiming] Backend isteği başlıyor. Payload uzunluğu: {wavData?.Length ?? 0} byte, text='{textReference}'");
+
             List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
             formData.Add(new MultipartFormFileSection("audioFile", wavData, "recording.wav", "audio/wav"));
             formData.Add(new MultipartFormDataSection("text", textReference));
@@ -316,6 +327,8 @@ namespace GraduationProject.Managers
             using (UnityWebRequest www = UnityWebRequest.Post(backendUrl, formData))
             {
                 yield return www.SendWebRequest();
+                float requestEnd = Time.realtimeSinceStartup;
+                Debug.Log($"[PronunciationTiming] Backend isteği bitti. Süre: {requestEnd - requestStart:F3} sn, HTTP Kod: {www.responseCode}, Result: {www.result}");
 
                 // --- BURASI KRİTİK: HATA NE OLURSA OLSUN KİLİTLENMEYİ ÖNLEMEK İÇİN BOŞ STRING DÖN ---
                 if (www.result == UnityWebRequest.Result.Success)
@@ -366,6 +379,22 @@ namespace GraduationProject.Managers
                 card.Setup(url.GetHashCode(), task.Result, null, null);
                 card.FlipOpen();
             }
+        }
+
+        // Türkçe karakterleri düzleştirerek eşleştirme kolaylığı sağlar
+        private string NormalizeKey(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return value;
+
+            string s = value.ToLower();
+            s = s.Replace("ö", "o")
+                 .Replace("ü", "u")
+                 .Replace("ş", "s")
+                 .Replace("ğ", "g")
+                 .Replace("ı", "i")
+                 .Replace("ç", "c");
+
+            return s;
         }
 
         private void UpdateUI(string status, string result)

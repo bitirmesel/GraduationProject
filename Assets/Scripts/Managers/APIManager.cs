@@ -31,6 +31,8 @@ namespace GraduationProject.Managers
                 return;
             }
 
+            Debug.Log("PERSISTENT PATH = " + Application.persistentDataPath);
+
             if (!string.IsNullOrEmpty(_baseUrl) && _baseUrl.EndsWith("/"))
                 _baseUrl = _baseUrl.TrimEnd('/');
         }
