@@ -61,6 +61,7 @@ public class LevelMapSceneController : MonoBehaviour
         Debug.Log($"[MAP] Tab seçildi: {_currentGameType}");
     }
 
+
     // Zorluk seviyesi seçildiğinde Backend'e istek atıp oyunu başlatan fonksiyon
     private async Task OnLevelSelected(int difficulty)
     {
@@ -70,23 +71,23 @@ public class LevelMapSceneController : MonoBehaviour
             return;
         }
 
-        // Seçili harf ID'sini GameContext'ten alıyoruz (OnLetterClicked sayesinde güncellendi)
+        // Seçili harf ID'sini GameContext'ten alıyoruz
         long letterId = GameContext.SelectedLetterId;
 
         if (letterId <= 0)
         {
-            Debug.LogError("[MAP] SelectedLetterId set edilmemiş! Lütfen önce bir harfe tıkladığınızdan emin olun.");
+            Debug.LogError("[MAP] SelectedLetterId set edilmemiş!");
             return;
         }
 
         Debug.Log($"[MAP] İstek Gönderiliyor => Harf ID: {letterId}, Tip: {_currentGameType}, Zorluk: {difficulty}");
 
-        // API İsteği
+        // API İsteği - Sadece kartları ve oyun verilerini çekiyoruz
         AssetSetDto assetSet = await APIManager.Instance.GetAssetSetAsync(letterId, _currentGameType, difficulty);
 
         if (assetSet == null)
         {
-            Debug.LogError("[MAP] AssetSet gelmedi (null). Bu harf ve zorluk seviyesi için backend verisi yok.");
+            Debug.LogError("[MAP] AssetSet gelmedi (null).");
             return;
         }
 
@@ -110,8 +111,10 @@ public class LevelMapSceneController : MonoBehaviour
             }
         }
 
-        Debug.Log($"[MAP] Veri Alındı => Oyun Sahnesi Yükleniyor... (Görsel Sayısı: {GameContext.ImageUrls.Count})");
+        // --- SESSION BAŞLATMA KISMI TAMAMEN SİLİNDİ --- 
+        // Artık oyun başında boş satır oluşmayacak.
 
+        Debug.Log($"[MAP] Veri Alındı => Oyun Sahnesi Yükleniyor... (Görsel Sayısı: {GameContext.ImageUrls.Count})");
         SceneManager.LoadScene("GameScene");
     }
 

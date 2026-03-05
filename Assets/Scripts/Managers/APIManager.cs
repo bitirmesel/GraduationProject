@@ -45,6 +45,32 @@ namespace GraduationProject.Managers
             return _baseUrl;
         }
 
+        // -------------------- VERİ ANALİTİĞİ: SKOR KAYDETME (YENİ) --------------------
+        /// <summary>
+        /// Her kelime telaffuzundan sonra skoru backend'e kalıcı olarak kaydeder.
+        /// </summary>
+        // APIManager.cs
+        // APIManager.cs içindeki ilgili metot
+        public async Task<bool> SavePronunciationScoreAsync(int score, string targetWord)
+        {
+            string url = $"{_baseUrl}/api/gamesessions/finish";
+
+            var requestData = new
+            {
+                sessionId = GameContext.SelectedAssetSetId, // Grup Kimliği
+                playerId = GameContext.PlayerId,           // Kim konuştu?
+                gameId = 4,                                // Hafıza Oyunu
+                letterId = GameContext.SelectedLetterId,   // Hangi harf?
+                score = score,                             // Başarı puanı
+                targetWord = targetWord,                   // "kedi"
+                maxScore = 100
+            };
+
+            string jsonBody = JsonConvert.SerializeObject(requestData);
+            string response = await SendPostRequest(url, jsonBody, false);
+            return response != null;
+        }
+
         // -------------------- PLAYER LOGIN --------------------
         public async Task<PlayerLoginResponseDto> PlayerLoginAsync(string nickname, string password)
         {
@@ -193,6 +219,31 @@ namespace GraduationProject.Managers
         {
             await Task.Delay(100);
             return new PronunciationResult { CorrectWords = new List<string> { "kedi", "kuş", "kurbağa", "köpek", "koyun", "kartal" } };
+        }
+
+        public async Task<long> StartGameSessionAsync()
+        {
+            string url = $"{_baseUrl}/api/gamesessions/start";
+
+            // GameContext'teki güncel seçimleri gönderiyoruz
+            var requestData = new
+            {
+                playerId = GameContext.PlayerId,
+                gameId = 4, // Hafıza oyunu sabit ID'si
+                letterId = GameContext.SelectedLetterId,
+                assetSetId = GameContext.SelectedAssetSetId
+            };
+
+            string jsonBody = JsonConvert.SerializeObject(requestData);
+            string response = await SendPostRequest(url, jsonBody, false);
+
+            if (!string.IsNullOrEmpty(response))
+            {
+                // Backend'den dönen sessionId'yi parse et
+                var resObj = JsonConvert.DeserializeObject<Dictionary<string, long>>(response);
+                return resObj["sessionId"];
+            }
+            return 0;
         }
     }
 }

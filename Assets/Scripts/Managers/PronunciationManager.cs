@@ -82,7 +82,7 @@ namespace GraduationProject.Managers
         public void StartPronunciationSession(List<AssetItem> levelData, string imageBaseUrl, string audioBaseUrl = null)
         {
             Debug.Log($"[PronunciationManager] Oturum Başlatılıyor... Gelen imageBaseUrl: '{imageBaseUrl}', audioBaseUrl: '{audioBaseUrl}', Liste uzunluğu: {levelData?.Count}");
-            
+
             if (levelData == null || levelData.Count == 0) return;
 
             if (UIPanelManager.Instance != null)
@@ -95,7 +95,7 @@ namespace GraduationProject.Managers
 
             GameObject gridContainer = GameObject.Find("GridContainer");
             if (gridContainer != null) gridContainer.SetActive(false);
-            
+
             StartSequence();
         }
 
@@ -104,9 +104,12 @@ namespace GraduationProject.Managers
             EnsureUIRefs();
             if (_levelAssets == null || _levelAssets.Count == 0) return;
 
+            // Oturum başında boş satır oluşmaması için StartGameSessionAsync çağrısını sildik.
+
             foreach (var asset in _levelAssets)
             {
                 string wordToProcess = asset.Key;
+                // Karakter düzeltmeleri...
                 if (wordToProcess.ToLower() == "kopek") wordToProcess = "köpek";
                 if (wordToProcess.ToLower() == "kus") wordToProcess = "kuş";
                 if (wordToProcess.ToLower() == "kedi") wordToProcess = "kedi";
@@ -121,10 +124,10 @@ namespace GraduationProject.Managers
                     activeCard.transform.localScale = Vector3.one * 2.5f;
                 }
 
-                // Ses dosyasını Cloudinary'den yükle ve çal
-                if (!string.IsNullOrEmpty(asset.Audio) && !string.IsNullOrEmpty(_audioBaseUrl))
+                // Ses dosyasını Cloudinary'den yükle ve çal (Arkadaşının eklediği kısım)
+                if (!string.IsNullOrEmpty(asset.Audio) && !string.IsNullOrEmpty(APIManager.Instance.GetAudioBaseUrl()))
                 {
-                    string fullAudioUrl = _audioBaseUrl + asset.Audio;
+                    string fullAudioUrl = APIManager.Instance.GetAudioBaseUrl() + asset.Audio;
                     AudioClip voiceClip = await AssetLoader.Instance.GetAudioAsync(fullAudioUrl, asset.Audio);
                     if (voiceClip != null)
                     {
@@ -142,58 +145,38 @@ namespace GraduationProject.Managers
 
                 while (!kelimeDogruMu)
                 {
-                    UpdateUI($"{wordToProcess} demen bekleniyor...", "");
-
+                    UpdateUI($"{wordToProcess} bekleniyor...", "");
                     _currentApiTask = new TaskCompletionSource<string>();
+
                     string sonucJson = await _currentApiTask.Task;
 
-                    // --- KRİTİK DEĞİŞİKLİK: HERHANGİ BİR HATA DURUMUNDA SKORU 0 SAY VE DEVAM ET ---
-                    if (string.IsNullOrEmpty(sonucJson))
-                    {
-                        Debug.LogWarning("[Pronunciation] API Hata döndü veya kilitlenme önlendi. Skor 0 sayılıyor.");
-                        UpdateUI("Puanın: 0. Lütfen tekrar dene!", "");
-                        continue;
-                    }
-
-                    try
+                    if (!string.IsNullOrEmpty(sonucJson))
                     {
                         var responseList = JsonConvert.DeserializeObject<List<PronunciationResponseDto>>(sonucJson);
-
-                        if (responseList == null || responseList.Count <= 1 || responseList[1].OverallResult == null || responseList[1].OverallResult.Count == 0)
+                        if (responseList != null && responseList.Count > 1)
                         {
-                            UpdateUI("Puanın: 0. Tekrar dene!", "");
-                            continue;
-                        }
+                            var puan = (int)responseList[1].OverallResult[0].overall_points;
 
-                        var resultData = responseList[1].OverallResult[0];
-                        double puan = resultData.overall_points;
+                            // 1. PUANI EKRANDA GÖSTER
+                            UpdateUI($"Puanın: {puan}", "");
+                            Debug.Log($"[SKOR ALINDI] Kelime: {wordToProcess}, Puan: {puan}");
 
-                        Debug.Log($"[Pronunciation] Skor: {puan} | Kelime: {wordToProcess}");
+                            // 2. VERİTABANINA KAYDET (0 puan olsa dahi her denemeyi kaydeder)
+                            await APIManager.Instance.SavePronunciationScoreAsync(puan, wordToProcess);
+                            Debug.Log($"[DB KAYIT] {wordToProcess} için {puan} puanı gönderildi.");
 
-                        if (puan >= 70)
-                        {
-                            kelimeDogruMu = true;
-                            UpdateUI($"Harika! Puanın: {puan:F0}", "");
-                            if (AudioManager.Instance != null) AudioManager.Instance.PlayEffect("CorrectSound");
-                            await Task.Delay(800);
-                            if (activeCard != null) Destroy(activeCard);
+                            if (puan >= 70)
+                            {
+                                kelimeDogruMu = true;
+                                await Task.Delay(1000);
+                                if (activeCard != null) Destroy(activeCard);
+                            }
                         }
-                        else
-                        {
-                            UpdateUI($"Puanın düşük: {puan:F0}. Tekrar dene!", "");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.LogError("[JSON Error] " + ex.Message);
-                        UpdateUI("Puanın: 0. Tekrar dene!", "");
                     }
                 }
             }
-
             if (UIPanelManager.Instance != null) UIPanelManager.Instance.ShowVictoryPanel(true);
         }
-
         // UI'daki "Dinle" butonundan çağrılır — aktif kelimenin sesini tekrar çalar
         public async void PlayCurrentWordAudio()
         {
@@ -230,7 +213,7 @@ namespace GraduationProject.Managers
 
             string fullAudioUrl = _audioBaseUrl + currentItem.Audio;
             Debug.Log($"[PlayCurrentWordAudio] İndirilecek Ses Yolu: {fullAudioUrl}");
-            
+
             AudioClip clip = await AssetLoader.Instance.GetAudioAsync(fullAudioUrl, currentItem.Audio);
 
             if (clip != null)
