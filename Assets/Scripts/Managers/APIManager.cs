@@ -60,26 +60,26 @@ namespace GraduationProject.Managers
         // APIManager.cs
         // APIManager.cs içindeki ilgili metot
         public async Task<bool> SavePronunciationScoreAsync(int score, string targetWord)
-{
-    string url = $"{_baseUrl}/api/gamesessions/finish";
+        {
+            string url = $"{_baseUrl}/api/gamesessions/finish";
 
-    var requestData = new
-    {
-        playerId = GameContext.PlayerId,
-        gameId = 4, // Hafıza Oyunu
-        letterId = GameContext.SelectedLetterId,
-        taskId = GameContext.CurrentTaskId, // KRİTİK: Bu oyun hangi göreve ait?
-        score = score,
-        targetWord = targetWord, // "kedi", "köpek" vb.
-        maxScore = 100
-    };
+            var requestData = new
+            {
+                playerId = GameContext.PlayerId,
+                gameId = 4, // Hafıza Oyunu
+                letterId = GameContext.SelectedLetterId,
+                taskId = GameContext.CurrentTaskId, // KRİTİK: Bu oyun hangi göreve ait?
+                score = score,
+                targetWord = targetWord, // "kedi", "köpek" vb.
+                maxScore = 100
+            };
 
-    string jsonBody = JsonConvert.SerializeObject(requestData);
-    Debug.Log($"[API] Kelime Skoru Gönderiliyor: {targetWord} (TaskId: {GameContext.CurrentTaskId})");
+            string jsonBody = JsonConvert.SerializeObject(requestData);
+            Debug.Log($"[API] Kelime Skoru Gönderiliyor: {targetWord} (TaskId: {GameContext.CurrentTaskId})");
 
-    string response = await SendPostRequest(url, jsonBody, false);
-    return response != null;
-}
+            string response = await SendPostRequest(url, jsonBody, false);
+            return response != null;
+        }
 
         // -------------------- PLAYER LOGIN --------------------
         public async Task<PlayerLoginResponseDto> PlayerLoginAsync(string nickname, string password)
@@ -218,6 +218,56 @@ namespace GraduationProject.Managers
             }
         }
 
+        // -------------------- NOTIFICATIONS (YENİ) --------------------
+
+        /// <summary>
+        /// Öğrenciye ait tüm okunmamış bildirimleri (terapist mesajlarını) getirir.
+        /// </summary>
+        public async Task<List<NotificationItem>> GetNotificationsAsync(long playerId)
+        {
+            // Backend'de yazdığımız yeni endpoint: api/notifications/player/{id}
+            string url = $"{_baseUrl}/api/notifications/player/{playerId}";
+            string json = await SendGetRequest(url, false);
+
+            if (string.IsNullOrEmpty(json))
+            {
+                return new List<NotificationItem>();
+            }
+
+            try
+            {
+                // Gelen listeyi NotificationItem modeline çevirir
+                return JsonConvert.DeserializeObject<List<NotificationItem>>(json);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[APIManager] Notification parse hatası: {ex.Message}");
+                return new List<NotificationItem>();
+            }
+        }
+
+        /// <summary>
+        /// Belirli bir bildirimi veritabanında "okundu" olarak işaretler.
+        /// </summary>
+        public async Task<bool> MarkNotificationAsReadAsync(long notificationId)
+        {
+            // URL'nin sonuna /read eklediğimizden emin oluyoruz
+            string url = $"{_baseUrl}/api/notifications/{notificationId}/read";
+
+            // Body boş olsa bile {} göndererek API'yi mutlu ediyoruz
+            string jsonBody = "{}";
+
+            Debug.Log($"[API] Okundu isteği gönderiliyor: {url}");
+            string response = await SendPostRequest(url, jsonBody, false);
+
+            if (response != null)
+            {
+                Debug.Log("[API] Başarıyla okundu işaretlendi!");
+                return true;
+            }
+            return false;
+        }
+
         // -------------------- CORE REQUEST METHODS --------------------
         private async Task<string> SendPostRequest(string url, string jsonBody, bool requiresAuth)
         {
@@ -283,6 +333,8 @@ namespace GraduationProject.Managers
             }
             return 0;
         }
+
+
 
 
     }
