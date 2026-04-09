@@ -1,12 +1,14 @@
 ﻿using System;
 using UnityEngine;
 using System.Collections;
-using UnityEditor;
 
+// DÜZELTME BURADA YAPILDI:
+#if UNITY_EDITOR
+using UnityEditor; 
+#endif
 
 namespace TMPro.Examples
 {
-
     public class TMP_TextInfoDebugTool : MonoBehaviour
     {
         // Since this script is used for debugging, we exclude it from builds.
@@ -250,7 +252,7 @@ namespace TMPro.Examples
                        // Advance
                        labelPosition = m_Transform.TransformPoint(new Vector3(advance, baseline, 0));
                        style.alignment = TextAnchor.UpperLeft;
-                       Handles.Label(labelPosition, "  Advance", style);
+                       Handles.Label(labelPosition, "   Advance", style);
                    }
                }
             }
@@ -480,8 +482,8 @@ namespace TMPro.Examples
                 TMP_CharacterInfo lastCharacterInfo = m_TextInfo.characterInfo[lineInfo.lastCharacterIndex];
 
                 bool isLineVisible = (lineInfo.characterCount == 1 && (firstCharacterInfo.character == 10 || firstCharacterInfo.character == 11 || firstCharacterInfo.character == 0x2028 || firstCharacterInfo.character == 0x2029)) ||
-                                      i > m_TextComponent.maxVisibleLines ||
-                                     (m_TextComponent.overflowMode == TextOverflowModes.Page && firstCharacterInfo.pageNumber + 1 != m_TextComponent.pageToDisplay) ? false : true;
+                                     i > m_TextComponent.maxVisibleLines ||
+                                    (m_TextComponent.overflowMode == TextOverflowModes.Page && firstCharacterInfo.pageNumber + 1 != m_TextComponent.pageToDisplay) ? false : true;
 
                 if (!isLineVisible) continue;
 
@@ -649,4 +651,3 @@ namespace TMPro.Examples
         #endif
     }
 }
-

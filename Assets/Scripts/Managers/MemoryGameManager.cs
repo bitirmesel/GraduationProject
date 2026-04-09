@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.UI;
 using GraduationProject.Managers;
 using GraduationProject.Models;
 using GraduationProject.Utilities;
@@ -18,17 +17,17 @@ public class MemoryGameManager : BaseGameManager
     [Header("Config")]
     [SerializeField] private long _fixedGameId = 4;
 
-    // --- KELİME DATASI ---
-    // API'den gelen orijinal item listesi (timsah, kedi vb.) burada saklanır.
     private List<AssetItem> _levelAssetData = new List<AssetItem>();
+<<<<<<< Updated upstream
     private string _imageBaseUrl; // Görseller için temel URL (base_url)
     private string _audioBaseUrl; // Ses dosyaları için temel URL (audio_base_url)
 
     // Veriler
+=======
+>>>>>>> Stashed changes
     private Sprite _cardBackSprite;
     private List<Sprite> _faceSprites = new List<Sprite>();
 
-    // Mantık
     private MemoryCard _firstCard;
     private MemoryCard _secondCard;
     private bool _inputLocked = false;
@@ -37,31 +36,32 @@ public class MemoryGameManager : BaseGameManager
 
     private void Awake()
     {
-        // Singleton kurulumu
         if (Instance == null) Instance = this;
     }
 
-    // --- 1. CLOUD YÜKLEME ---
     public override async Task InitializeGame(long letterId)
     {
-        // Temizlik işlemleri
+        // 1. TEMİZLİK
         foreach (Transform child in _gridContainer) Destroy(child.gameObject);
         _matchesFound = 0;
         _faceSprites.Clear();
         _levelAssetData.Clear();
         _inputLocked = false;
+        _cardBackSprite = null;
 
         long gameId = GameContext.SelectedGameId > 0 ? GameContext.SelectedGameId : _fixedGameId;
-        Debug.Log($"[MemoryGameManager] Config çekiliyor: gameId={gameId}, letterId={letterId}");
+        Debug.Log($"🚀 [MemoryGameManager] Oyun Başlatılıyor... ID: {gameId}");
 
+        // 2. API İSTEĞİ
         var config = await APIManager.Instance.GetGameConfigAsync(gameId, letterId);
 
         if (config == null)
         {
-            Debug.LogError("[MemoryGameManager] GameConfig gelmedi!");
+            Debug.LogError("❌ API Cevap Vermedi veya Config Null!");
             return;
         }
 
+<<<<<<< Updated upstream
         _cardBackSprite = null;
         _imageBaseUrl = config.BaseUrl;      // Görsel URL'leri için temel yol
         _audioBaseUrl = config.AudioBaseUrl; // Ses URL'ini sakla
@@ -73,9 +73,40 @@ public class MemoryGameManager : BaseGameManager
             {
                 string fullUrl = _imageBaseUrl + item.File;
                 Sprite sprite = await AssetLoader.Instance.GetSpriteAsync(fullUrl, item.File);
+=======
+        // MODELDEKİ 'Items' LİSTESİNİ KULLANIYORUZ
+        if (config.Items == null || config.Items.Count == 0)
+        {
+            Debug.LogError("❌ API'den gelen 'Items' listesi BOŞ!");
+            return;
+        }
+>>>>>>> Stashed changes
 
-                if (sprite != null)
+        Debug.Log($"📦 Veri Alındı. Öge Sayısı: {config.Items.Count}");
+
+        foreach (var item in config.Items)
+        {
+            // URL OLUŞTURMA (BaseUrl varsa ekle)
+            string fullUrl = item.File;
+            
+            // Modeldeki 'BaseUrl' alanını kullanıyoruz
+            if (!string.IsNullOrEmpty(config.BaseUrl) && !fullUrl.StartsWith("http"))
+            {
+                fullUrl = config.BaseUrl + item.File;
+            }
+
+            Debug.Log($"📥 İndiriliyor: {fullUrl}");
+
+            Sprite sprite = await AssetLoader.Instance.GetSpriteAsync(fullUrl, item.File);
+
+            if (sprite != null)
+            {
+                string cleanKey = string.IsNullOrEmpty(item.Key) ? "" : item.Key.Trim().ToLower();
+
+                // Background kontrolü
+                if (cleanKey.Contains("background"))
                 {
+<<<<<<< Updated upstream
                     if (item.Key == "background")
                     {
                         _cardBackSprite = sprite;
@@ -93,20 +124,34 @@ public class MemoryGameManager : BaseGameManager
                             await AssetLoader.Instance.GetAudioAsync(fullAudioUrl, item.Audio);
                         }
                     }
+=======
+                    _cardBackSprite = sprite;
+                    Debug.Log("✅ Background Ayarlandı.");
+>>>>>>> Stashed changes
                 }
+                else
+                {
+                    _faceSprites.Add(sprite);
+                    _levelAssetData.Add(item);
+                    Debug.Log($"✅ Kart Eklendi: {item.Key}");
+                }
+            }
+            else
+            {
+                Debug.LogError($"❌ İndirme Başarısız: {fullUrl}");
             }
         }
 
-        if (_cardBackSprite == null || _faceSprites.Count == 0)
+        // --- SONUÇ ---
+        if (_faceSprites.Count < 2)
         {
-            Debug.LogError("[MemoryGameManager] Gerekli görseller yüklenemedi!");
+            Debug.LogError($"❌ Yetersiz Kart Sayısı: {_faceSprites.Count}. Oyun başlatılamaz.");
             return;
         }
 
         SetupGrid();
     }
 
-    // --- 2. OYUN KURULUMU ---
     private void SetupGrid()
     {
         List<Sprite> deck = new List<Sprite>();
@@ -116,7 +161,7 @@ public class MemoryGameManager : BaseGameManager
         }
         _totalPairs = deck.Count / 2;
 
-        // Shuffle (Karıştırma)
+        // Karıştır
         for (int i = 0; i < deck.Count; i++)
         {
             Sprite temp = deck[i];
@@ -128,13 +173,11 @@ public class MemoryGameManager : BaseGameManager
         foreach (Sprite s in deck)
         {
             MemoryCard card = Instantiate(_cardPrefab, _gridContainer);
-            // Sprite ismini ID olarak kullanarak eşleşme kontrolü sağla
-            int cardId = s.name.GetHashCode();
+            int cardId = s.GetInstanceID();
             card.Setup(cardId, s, _cardBackSprite, OnCardSelected);
         }
     }
 
-    // --- 3. OYUN MANTIĞI ---
     private void OnCardSelected(MemoryCard clickedCard)
     {
         if (_inputLocked || clickedCard == _firstCard) return;
@@ -165,7 +208,7 @@ public class MemoryGameManager : BaseGameManager
 
             if (_matchesFound >= _totalPairs)
             {
-                Debug.Log("HAFIZA OYUNU BİTTİ! Telaffuz aşamasına geçiliyor...");
+                Debug.Log("🏆 OYUN BİTTİ!");
                 yield return new WaitForSeconds(1.0f);
                 OnGameComplete();
             }
@@ -181,35 +224,21 @@ public class MemoryGameManager : BaseGameManager
         _inputLocked = false;
     }
 
-    // --- 4. OYUN BİTİŞİ VE TELAFFUZ BAŞLANGICI ---
-    // --- 4. OYUN BİTİŞİ VE TELAFFUZ BAŞLANGICI ---
-    // MemoryGameManager.cs dosyasında:
-
-    // MemoryGameManager.cs (Satır 196 civarı)
-    // MemoryGameManager.cs (OnGameComplete içindeki ilgili bölüm)
-public async void OnGameComplete()
-{
-    Debug.Log("[Game] Oyun tamamlandı. Telaffuz süreci başlıyor...");
-
-    // Paneli UIPanelManager üzerinden aç (Hata korumalı)
-    if (UIPanelManager.Instance != null)
-        UIPanelManager.Instance.ShowPronunciationPanel(true);
-
-    // PronunciationManager'ı bulmak için en garanti yöntem:
-    PronunciationManager pm = PronunciationManager.Instance;
-    
-    if (pm == null)
+    public async void OnGameComplete()
     {
-        // Kapalı (pasif) objeler dahil tüm sahnede ara
-        PronunciationManager[] found = Resources.FindObjectsOfTypeAll<PronunciationManager>();
-        if (found.Length > 0)
+        if (UIPanelManager.Instance != null) UIPanelManager.Instance.ShowPronunciationPanel(true);
+        PronunciationManager pm = PronunciationManager.Instance;
+        
+        if (pm == null)
         {
-            pm = found[0];
-            pm.gameObject.SetActive(true); // Kapalıysa zorla aç!
-            PronunciationManager.Instance = pm; // Singleton'ı elinle tazele
+             var found = Resources.FindObjectsOfTypeAll<PronunciationManager>();
+             if(found.Length > 0) { pm = found[0]; pm.gameObject.SetActive(true); PronunciationManager.Instance = pm; }
         }
+        
+        if (pm != null) pm.StartPronunciationSession(_levelAssetData);
     }
 
+<<<<<<< Updated upstream
     if (pm != null)
     {
         pm.StartPronunciationSession(_levelAssetData, _imageBaseUrl, _audioBaseUrl);
@@ -220,14 +249,11 @@ public async void OnGameComplete()
     }
 }
     // --- 5. TELAFFUZ KONTROLÜ (UI'dan çağrılır) ---
+=======
+>>>>>>> Stashed changes
     public void SubmitPronunciation(int assetIndex)
     {
-        // Artık targetWord veya callback göndermiyoruz.
-        // PronunciationManager.cs içindeki StopRecording() artık parametresizdir.
-        if (PronunciationManager.Instance != null)
-        {
-            PronunciationManager.Instance.StopRecording();
-        }
+        if (PronunciationManager.Instance != null) PronunciationManager.Instance.StopRecording();
     }
 
     protected override async Task ApplyAssetSet(AssetSetDto assetSet) { await Task.Yield(); }

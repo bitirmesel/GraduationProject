@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.Networking;
+using UnityEngine.Networking; // UnityWebRequest için gerekli
 using Newtonsoft.Json;
 using GraduationProject.Models;
 using System;
@@ -35,7 +35,7 @@ namespace GraduationProject.Managers
             }
             else
             {
-                Destroy(this);   // GameObject'i değil, sadece component'i öldür
+                Destroy(this);
                 return;
             }
 
@@ -45,11 +45,8 @@ namespace GraduationProject.Managers
                 _baseUrl = _baseUrl.TrimEnd('/');
         }
 
-
-        // --- HATALI KISIM DÜZELTİLDİ ---
         public string GetBaseUrl()
         {
-            // Değişken adını _baseUrl olarak güncelledik
             return _baseUrl;
         }
 
@@ -89,23 +86,13 @@ namespace GraduationProject.Managers
             string jsonBody = JsonConvert.SerializeObject(requestData);
             string response = await SendPostRequest(url, jsonBody, false);
 
-            // --- KRİTİK LOG: Gelen ham veriyi burada gör ---
-            Debug.Log("[API RESPONSE RAW]: " + response);
-
             if (string.IsNullOrEmpty(response)) return null;
 
-            try
-            {
-                // JSON ayarlarını büyük/küçük harfe duyarsız olacak şekilde güncelleyebiliriz
-                return JsonConvert.DeserializeObject<PlayerLoginResponseDto>(response);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError("[API] Deserialization hatası: " + ex.Message);
-                return null;
-            }
+            try { return JsonConvert.DeserializeObject<PlayerLoginResponseDto>(response); }
+            catch { return null; }
         }
 
+<<<<<<< Updated upstream
         // -------------------- GET TASKS --------------------
         public async Task<List<TaskItem>> GetTasksAsync(long playerId)
         {
@@ -200,12 +187,21 @@ namespace GraduationProject.Managers
         }
 
         // -------------------- NOTIFICATIONS --------------------
+=======
+        // -------------------- NOTIFICATIONS (EKLENDİ) --------------------
+        // Bu metot silindiği için hata alıyordunuz, geri eklendi.
+>>>>>>> Stashed changes
         public async Task<int> GetUnreadNotificationCount(long playerId)
         {
             string url = $"{_baseUrl}/api/notifications/unread-count/{playerId}";
             using (var request = UnityWebRequest.Get(url))
             {
                 request.SetRequestHeader("Content-Type", "application/json");
+
+                // Auth token varsa ekleyelim
+                if (!string.IsNullOrEmpty(_jwtToken))
+                    request.SetRequestHeader("Authorization", $"Bearer {_jwtToken}");
+
                 var operation = request.SendWebRequest();
                 while (!operation.isDone) await Task.Yield();
 
@@ -216,6 +212,100 @@ namespace GraduationProject.Managers
                 }
                 return 0;
             }
+        }
+
+        // -------------------- GAME CONFIG --------------------
+        public async Task<GameAssetConfig> GetGameConfigAsync(long gameId, long letterId)
+        {
+            string url;
+            if (gameId == 4)
+                url = $"{_baseUrl}/api/asset-sets?gameId={gameId}&letterId={letterId}";
+            else
+                url = $"{_baseUrl}/api/gameconfig/{gameId}/{letterId}";
+
+            Debug.Log($"[APIManager] Config İsteniyor: {url}");
+
+            string json = await SendGetRequest(url, false);
+
+            if (string.IsNullOrEmpty(json) || json == "[]")
+            {
+                Debug.LogError($"[APIManager] Veri BOŞ döndü! (GameId:{gameId})");
+                return null;
+            }
+
+            try
+            {
+                GameAssetConfig config = null;
+                string cleanJson = json.Trim();
+
+                // 1. Ana JSON Parse
+                if (cleanJson.StartsWith("["))
+                {
+                    var list = JsonConvert.DeserializeObject<List<GameAssetConfig>>(cleanJson);
+                    if (list != null && list.Count > 0) config = list[0];
+                }
+                else
+                {
+                    config = JsonConvert.DeserializeObject<GameAssetConfig>(cleanJson);
+                }
+
+                // 2. AssetJson Çözümleme (KUTUYU AÇMA)
+                if (config != null)
+                {
+                    // Eğer Items boşsa ama AssetJson doluysa, string'i listeye çevir
+                    if ((config.Items == null || config.Items.Count == 0) && !string.IsNullOrEmpty(config.AssetJson))
+                    {
+                        Debug.Log("[APIManager] AssetJson bulundu, listeye çevriliyor...");
+                        try
+                        {
+                            // Senin backend yapına göre AssetJson direkt bir listedir:
+                            config.Items = JsonConvert.DeserializeObject<List<AssetItem>>(config.AssetJson);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            Debug.LogError($"[APIManager] AssetJson parse hatası: {ex.Message}");
+                        }
+                    }
+
+                    int finalCount = (config.Items != null) ? config.Items.Count : 0;
+                    Debug.Log($"[APIManager] Config Hazır. Toplam Asset: {finalCount}");
+                }
+
+                return config;
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError("[APIManager] JSON Parse Hatası: " + ex.Message);
+                return null;
+            }
+        }
+
+        // -------------------- GET TASKS --------------------
+        public async Task<List<TaskItem>> GetTasksAsync(long playerId)
+        {
+            string url = $"{_baseUrl}/api/players/{playerId}/tasks?t={DateTime.Now.Ticks}";
+            string json = await SendGetRequest(url, false);
+            if (string.IsNullOrEmpty(json)) return null;
+            return JsonConvert.DeserializeObject<List<TaskItem>>(json);
+        }
+
+        // -------------------- ASSET SET --------------------
+        public async Task<AssetSetDto> GetAssetSetAsync(long letterId, string gameType, int difficulty)
+        {
+            string serverGameType = gameType == "Kelime" ? "WORD" : (gameType == "Hece" ? "SYLLABLE" : "SENTENCE");
+            string url = $"{_baseUrl}/api/assets/sets?letterId={letterId}&gameType={serverGameType}&difficulty={difficulty}";
+            string json = await SendGetRequest(url, false);
+
+            if (!string.IsNullOrEmpty(json) && json != "[]" && json != "{}")
+            {
+                try
+                {
+                    AssetSetDto realData = JsonConvert.DeserializeObject<AssetSetDto>(json);
+                    if (realData != null && realData.items != null) return realData;
+                }
+                catch { }
+            }
+            return null;
         }
 
         // -------------------- CORE REQUEST METHODS --------------------
@@ -252,11 +342,10 @@ namespace GraduationProject.Managers
             }
         }
 
-        // Bu metot şu an dummy (geçici) sonuç döndürüyor. Gerçek analiz PronunciationManager üzerinden yapılıyor.
         public async Task<PronunciationResult> CheckPronunciationAsync(byte[] audioData)
         {
-            await Task.Delay(100);
-            return new PronunciationResult { CorrectWords = new List<string> { "kedi", "kuş", "kurbağa", "köpek", "koyun", "kartal" } };
+            await Task.Yield();
+            return new PronunciationResult();
         }
 
         public async Task<long> StartGameSessionAsync()
