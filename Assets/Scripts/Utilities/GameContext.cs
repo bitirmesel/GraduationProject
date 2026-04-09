@@ -25,5 +25,8 @@ namespace GraduationProject.Models
         public static string CardBackUrl { get; set; }
         public static List<string> ImageUrls { get; set; } = new List<string>();
         public static List<string> AudioUrls { get; set; } = new List<string>();
+
+        // GameContext.cs 
+        public static long? CurrentTaskId { get; set; }
     }
 }

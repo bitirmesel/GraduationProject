@@ -11,6 +11,7 @@ namespace GraduationProject.Models
         public int taskId;
         public string status;      // Örn: "ASSIGNED"
         public string letterCode;  // Örn: "D"
+        public long letterId { get; set; }
         public string gameName;    // Örn: "Syllable L1 - Matching"
         public string note;        // Örn: "Haftaya görüşürüz"
 

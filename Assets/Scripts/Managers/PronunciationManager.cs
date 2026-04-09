@@ -100,142 +100,77 @@ namespace GraduationProject.Managers
         }
 
         public async void StartSequence()
+{
+    EnsureUIRefs();
+    if (_levelAssets == null || _levelAssets.Count == 0) return;
+
+    foreach (var asset in _levelAssets)
+    {
+        string wordToProcess = asset.Key;
+        // Karakter düzeltmeleri
+        if (wordToProcess.ToLower() == "kopek") wordToProcess = "köpek";
+        if (wordToProcess.ToLower() == "kus") wordToProcess = "kuş";
+        if (wordToProcess.ToLower() == "kedi") wordToProcess = "kedi";
+        if (wordToProcess.ToLower() == "kurbaga") wordToProcess = "kurbağa";
+
+        _activeTargetWord = wordToProcess;
+
+        GameObject activeCard = CreatePronunciationCard(asset);
+        if (activeCard != null && focusPosition != null)
         {
-            EnsureUIRefs();
-            if (_levelAssets == null || _levelAssets.Count == 0) return;
-
-            // Oturum başında boş satır oluşmaması için StartGameSessionAsync çağrısını sildik.
-
-            foreach (var asset in _levelAssets)
-            {
-                string wordToProcess = asset.Key;
-                // Karakter düzeltmeleri...
-                if (wordToProcess.ToLower() == "kopek") wordToProcess = "köpek";
-                if (wordToProcess.ToLower() == "kus") wordToProcess = "kuş";
-                if (wordToProcess.ToLower() == "kedi") wordToProcess = "kedi";
-                if (wordToProcess.ToLower() == "kurbaga") wordToProcess = "kurbağa";
-
-                _activeTargetWord = wordToProcess;
-
-                GameObject activeCard = CreatePronunciationCard(asset);
-                if (activeCard != null && focusPosition != null)
-                {
-                    activeCard.transform.position = focusPosition.position;
-                    activeCard.transform.localScale = Vector3.one * 2.5f;
-                }
-
-                // Ses dosyasını Cloudinary'den yükle ve çal (Arkadaşının eklediği kısım)
-                if (!string.IsNullOrEmpty(asset.Audio) && !string.IsNullOrEmpty(APIManager.Instance.GetAudioBaseUrl()))
-                {
-                    string fullAudioUrl = APIManager.Instance.GetAudioBaseUrl() + asset.Audio;
-                    AudioClip voiceClip = await AssetLoader.Instance.GetAudioAsync(fullAudioUrl, asset.Audio);
-                    if (voiceClip != null)
-                    {
-                        AudioSource audioSource = GetComponent<AudioSource>();
-                        if (audioSource != null)
-                        {
-                            audioSource.clip = voiceClip;
-                            audioSource.Play();
-                            while (audioSource.isPlaying) await Task.Yield();
-                        }
-                    }
-                }
-
-                bool kelimeDogruMu = false;
-
-                while (!kelimeDogruMu)
-                {
-                    UpdateUI($"{wordToProcess} bekleniyor...", "");
-                    _currentApiTask = new TaskCompletionSource<string>();
-
-                    string sonucJson = await _currentApiTask.Task;
-
-                    if (!string.IsNullOrEmpty(sonucJson))
-                    {
-                        var responseList = JsonConvert.DeserializeObject<List<PronunciationResponseDto>>(sonucJson);
-                        if (responseList != null && responseList.Count > 1)
-                        {
-                            var puan = (int)responseList[1].OverallResult[0].overall_points;
-
-                            // 1. PUANI EKRANDA GÖSTER
-                            UpdateUI($"Puanın: {puan}", "");
-                            Debug.Log($"[SKOR ALINDI] Kelime: {wordToProcess}, Puan: {puan}");
-
-                            // 2. VERİTABANINA KAYDET (0 puan olsa dahi her denemeyi kaydeder)
-                            await APIManager.Instance.SavePronunciationScoreAsync(puan, wordToProcess);
-                            Debug.Log($"[DB KAYIT] {wordToProcess} için {puan} puanı gönderildi.");
-
-                            if (puan >= 70)
-                            {
-                                kelimeDogruMu = true;
-                                await Task.Delay(1000);
-                                if (activeCard != null) Destroy(activeCard);
-                            }
-                        }
-                    }
-                }
-            }
-            if (UIPanelManager.Instance != null) UIPanelManager.Instance.ShowVictoryPanel(true);
+            activeCard.transform.position = focusPosition.position;
+            activeCard.transform.localScale = Vector3.one * 2.5f;
         }
-        // UI'daki "Dinle" butonundan çağrılır — aktif kelimenin sesini tekrar çalar
-        public async void PlayCurrentWordAudio()
+
+        // 1. SESİ ÇAL (Cloudinary üzerinden)
+        if (!string.IsNullOrEmpty(asset.Audio) && APIManager.Instance != null)
         {
-            Debug.Log("[PlayCurrentWordAudio] --- BUTONA BASILDI VE METOT TETIKLENDI ---");
-
-            if (string.IsNullOrEmpty(_audioBaseUrl))
-            {
-                Debug.LogWarning("[PlayCurrentWordAudio] HATA: _audioBaseUrl boş!");
-                return;
-            }
-
-            Debug.Log($"[PlayCurrentWordAudio] Hedef Kelime aranıyor: {_activeTargetWord}");
-
-            // _levelAssets içinde şu an sırası gelen item'ı bul
-            // _activeTargetWord ekranda aksanlı (ör: "köpek"), JSON'daki key ise düz (ör: "kopek")
-            string targetKey = NormalizeKey(_activeTargetWord);
-            AssetItem currentItem = _levelAssets.Find(a =>
-            {
-                string normalized = NormalizeKey(a.Key);
-                return !string.IsNullOrEmpty(targetKey) &&
-                       (targetKey.StartsWith(normalized) || normalized == targetKey);
-            });
-
-            if (currentItem == null)
-            {
-                Debug.LogWarning($"[PlayCurrentWordAudio] HATA: '{_activeTargetWord}' kelimesi JSON listesinde bulunamadı!");
-                return;
-            }
-            if (string.IsNullOrEmpty(currentItem.Audio))
-            {
-                Debug.LogWarning($"[PlayCurrentWordAudio] '{_activeTargetWord}' için JSON'da ses dosyası ismi (audio) atanmamış veya null!");
-                return;
-            }
-
-            string fullAudioUrl = _audioBaseUrl + currentItem.Audio;
-            Debug.Log($"[PlayCurrentWordAudio] İndirilecek Ses Yolu: {fullAudioUrl}");
-
-            AudioClip clip = await AssetLoader.Instance.GetAudioAsync(fullAudioUrl, currentItem.Audio);
-
-            if (clip != null)
+            string fullAudioUrl = APIManager.Instance.GetAudioBaseUrl() + asset.Audio;
+            AudioClip voiceClip = await AssetLoader.Instance.GetAudioAsync(fullAudioUrl, asset.Audio);
+            if (voiceClip != null)
             {
                 AudioSource audioSource = GetComponent<AudioSource>();
                 if (audioSource != null)
                 {
-                    Debug.Log("[PlayCurrentWordAudio] Ses çalınıyor!");
-                    audioSource.Stop(); // Önceki ses varsa durdur
-                    audioSource.clip = clip;
+                    audioSource.clip = voiceClip;
                     audioSource.Play();
+                    while (audioSource.isPlaying) await Task.Yield();
                 }
-                else
-                {
-                    Debug.LogError("[PlayCurrentWordAudio] HATA: PronunciationManager üzerinde AudioSource componenti yok! Ses çalınamıyor.");
-                }
-            }
-            else
-            {
-                Debug.LogError("[PlayCurrentWordAudio] HATA: Ses dosyası AssetLoader'dan alınamadı.");
             }
         }
+
+        bool kelimeDogruMu = false;
+
+        while (!kelimeDogruMu)
+        {
+            UpdateUI($"{wordToProcess} bekleniyor...", "");
+            _currentApiTask = new TaskCompletionSource<string>();
+
+            string sonucJson = await _currentApiTask.Task;
+
+            if (!string.IsNullOrEmpty(sonucJson))
+            {
+                var responseList = JsonConvert.DeserializeObject<List<PronunciationResponseDto>>(sonucJson);
+                if (responseList != null && responseList.Count > 1)
+                {
+                    var puan = (int)responseList[1].OverallResult[0].overall_points;
+                    UpdateUI($"Puanın: {puan}", "");
+
+                    // VERİTABANINA KAYDET
+                    await APIManager.Instance.SavePronunciationScoreAsync(puan, wordToProcess);
+
+                    if (puan >= 70)
+                    {
+                        kelimeDogruMu = true;
+                        await Task.Delay(1000);
+                        if (activeCard != null) Destroy(activeCard);
+                    }
+                }
+            }
+        }
+    }
+    if (UIPanelManager.Instance != null) UIPanelManager.Instance.ShowVictoryPanel(true);
+}
 
         public void StartRecording()
         {
@@ -379,6 +314,24 @@ namespace GraduationProject.Managers
 
             return s;
         }
+
+        public async void PlayCurrentWordAudio()
+{
+    if (string.IsNullOrEmpty(_activeTargetWord) || APIManager.Instance == null) return;
+    
+    string fullAudioUrl = APIManager.Instance.GetAudioBaseUrl() + _activeTargetWord;
+    AudioClip clip = await AssetLoader.Instance.GetAudioAsync(fullAudioUrl, _activeTargetWord);
+    
+    if (clip != null)
+    {
+        AudioSource audioSource = GetComponent<AudioSource>();
+        if (audioSource != null)
+        {
+            audioSource.clip = clip;
+            audioSource.Play();
+        }
+    }
+}
 
         private void UpdateUI(string status, string result)
         {

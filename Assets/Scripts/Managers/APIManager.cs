@@ -16,6 +16,14 @@ namespace GraduationProject.Managers
         [Header("API Settings")]
         [SerializeField] private string _baseUrl = "https://backendapi-8nfn.onrender.com";
 
+        // APIManager.cs içerisine, sınıf parantezleri içine ekle
+        [SerializeField] private string _audioBaseUrl = "https://res.cloudinary.com/dd6zijhry/video/upload/";
+
+        public string GetAudioBaseUrl()
+        {
+            return _audioBaseUrl;
+        }
+
         private string _jwtToken;
 
         private void Awake()
@@ -52,24 +60,26 @@ namespace GraduationProject.Managers
         // APIManager.cs
         // APIManager.cs içindeki ilgili metot
         public async Task<bool> SavePronunciationScoreAsync(int score, string targetWord)
-        {
-            string url = $"{_baseUrl}/api/gamesessions/finish";
+{
+    string url = $"{_baseUrl}/api/gamesessions/finish";
 
-            var requestData = new
-            {
-                sessionId = GameContext.SelectedAssetSetId, // Grup Kimliği
-                playerId = GameContext.PlayerId,           // Kim konuştu?
-                gameId = 4,                                // Hafıza Oyunu
-                letterId = GameContext.SelectedLetterId,   // Hangi harf?
-                score = score,                             // Başarı puanı
-                targetWord = targetWord,                   // "kedi"
-                maxScore = 100
-            };
+    var requestData = new
+    {
+        playerId = GameContext.PlayerId,
+        gameId = 4, // Hafıza Oyunu
+        letterId = GameContext.SelectedLetterId,
+        taskId = GameContext.CurrentTaskId, // KRİTİK: Bu oyun hangi göreve ait?
+        score = score,
+        targetWord = targetWord, // "kedi", "köpek" vb.
+        maxScore = 100
+    };
 
-            string jsonBody = JsonConvert.SerializeObject(requestData);
-            string response = await SendPostRequest(url, jsonBody, false);
-            return response != null;
-        }
+    string jsonBody = JsonConvert.SerializeObject(requestData);
+    Debug.Log($"[API] Kelime Skoru Gönderiliyor: {targetWord} (TaskId: {GameContext.CurrentTaskId})");
+
+    string response = await SendPostRequest(url, jsonBody, false);
+    return response != null;
+}
 
         // -------------------- PLAYER LOGIN --------------------
         public async Task<PlayerLoginResponseDto> PlayerLoginAsync(string nickname, string password)
@@ -106,13 +116,41 @@ namespace GraduationProject.Managers
             return JsonConvert.DeserializeObject<List<TaskItem>>(json);
         }
 
+        // -------------------- FEEDBACKS --------------------
+        /// <summary>
+        /// Terapistin bu oyuncu için yazdığı geri bildirimleri (mesajları) getirir.
+        /// </summary>
+        public async Task<List<FeedbackDto>> GetTherapistFeedbacksAsync(long playerId)
+        {
+            string url = $"{_baseUrl}/api/players/{playerId}/feedbacks";
+
+            // Kendi yardımcı metodun olan SendGetRequest'i kullanarak tutarlılık sağlıyoruz
+            string json = await SendGetRequest(url, false);
+
+            if (string.IsNullOrEmpty(json))
+            {
+                return new List<FeedbackDto>();
+            }
+
+            try
+            {
+                // Backend'den dönen FeedbackResponseDto listesini Unity tarafındaki FeedbackDto'ya çevirir
+                return JsonConvert.DeserializeObject<List<FeedbackDto>>(json);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[APIManager] Feedback parse hatası: {ex.Message}");
+                return new List<FeedbackDto>();
+            }
+        }
+
         // -------------------- GAME CONFIG --------------------
         public async Task<GameAssetConfig> GetGameConfigAsync(long gameId, long letterId)
         {
             string url = $"{_baseUrl}/api/gameconfig/{gameId}/{letterId}";
             string json = await SendGetRequest(url, false);
 
-            if (string.IsNullOrEmpty(json)) 
+            if (string.IsNullOrEmpty(json))
                 return null;
 
             try
@@ -245,5 +283,7 @@ namespace GraduationProject.Managers
             }
             return 0;
         }
+
+
     }
 }

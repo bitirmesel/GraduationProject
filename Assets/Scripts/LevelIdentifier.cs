@@ -42,11 +42,14 @@ public class LevelIdentifier : MonoBehaviour
 {
     GameContext.SelectedLetterId = levelID;
     GameContext.SelectedLetterCode = letterCode;
-
-    GameContext.SelectedGameId = 4;        // ✅ ekle
+    GameContext.SelectedGameId = 4; 
     GameContext.SelectedGameType = "Memory";
     GameContext.SelectedDifficulty = 1;
 
+    // --- EKLEME: Bu harfe ait bir görev var mı kontrol et ---
+    // Eğer varsa, taskId'yi set et ki backend COMPLETED yapabilsin
+    // (Bunun için NotificationController'daki listeyi statik bir yerde tutabiliriz)
+    
     Debug.Log($"[Selection] Letter={letterCode} Id={levelID} => Memory diff=1");
     SceneManager.LoadScene(GameConstants.SCENE_GAME);
 }
