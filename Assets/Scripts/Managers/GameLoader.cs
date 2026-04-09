@@ -65,6 +65,7 @@ public class GameLoader : MonoBehaviour
         // Şimdilik basit bir switch, veritabanına göre değişir
         if (type == "Memory") return 4;
         if (type == "Matching") return 5;
+        if (type == "SYLLABLE" || type == "Hece") return 6;
         return 4; // Varsayılan
     }
 }

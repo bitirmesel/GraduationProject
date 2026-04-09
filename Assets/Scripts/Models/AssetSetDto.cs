@@ -8,6 +8,7 @@ namespace GraduationProject.Models
     {
         public string imageUrl;
         public string audioUrl;
+        public string syllableText; // Hece egzersizi için: "ka", "te", "at" vb.
     }
 
     [System.Serializable]
