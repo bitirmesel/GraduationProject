@@ -57,26 +57,26 @@ namespace GraduationProject.Managers
         // APIManager.cs
         // APIManager.cs içindeki ilgili metot
         public async Task<bool> SavePronunciationScoreAsync(int score, string targetWord)
-{
-    string url = $"{_baseUrl}/api/gamesessions/finish";
+        {
+            string url = $"{_baseUrl}/api/gamesessions/finish";
 
-    var requestData = new
-    {
-        playerId = GameContext.PlayerId,
-        gameId = 4, // Hafıza Oyunu
-        letterId = GameContext.SelectedLetterId,
-        taskId = GameContext.CurrentTaskId, // KRİTİK: Bu oyun hangi göreve ait?
-        score = score,
-        targetWord = targetWord, // "kedi", "köpek" vb.
-        maxScore = 100
-    };
+            var requestData = new
+            {
+                playerId = GameContext.PlayerId,
+                gameId = 4, // Hafıza Oyunu
+                letterId = GameContext.SelectedLetterId,
+                taskId = GameContext.CurrentTaskId, // KRİTİK: Bu oyun hangi göreve ait?
+                score = score,
+                targetWord = targetWord, // "kedi", "köpek" vb.
+                maxScore = 100
+            };
 
-    string jsonBody = JsonConvert.SerializeObject(requestData);
-    Debug.Log($"[API] Kelime Skoru Gönderiliyor: {targetWord} (TaskId: {GameContext.CurrentTaskId})");
+            string jsonBody = JsonConvert.SerializeObject(requestData);
+            Debug.Log($"[API] Kelime Skoru Gönderiliyor: {targetWord} (TaskId: {GameContext.CurrentTaskId})");
 
-    string response = await SendPostRequest(url, jsonBody, false);
-    return response != null;
-}
+            string response = await SendPostRequest(url, jsonBody, false);
+            return response != null;
+        }
 
         // -------------------- PLAYER LOGIN --------------------
         public async Task<PlayerLoginResponseDto> PlayerLoginAsync(string nickname, string password)
@@ -92,105 +92,8 @@ namespace GraduationProject.Managers
             catch { return null; }
         }
 
-<<<<<<< Updated upstream
-        // -------------------- GET TASKS --------------------
-        public async Task<List<TaskItem>> GetTasksAsync(long playerId)
-        {
-            string url = $"{_baseUrl}/api/players/{playerId}/tasks?t={System.DateTime.Now.Ticks}";
-            string json = await SendGetRequest(url, false);
-
-            if (string.IsNullOrEmpty(json)) return null;
-            return JsonConvert.DeserializeObject<List<TaskItem>>(json);
-        }
-
-        // -------------------- FEEDBACKS --------------------
-        /// <summary>
-        /// Terapistin bu oyuncu için yazdığı geri bildirimleri (mesajları) getirir.
-        /// </summary>
-        public async Task<List<FeedbackDto>> GetTherapistFeedbacksAsync(long playerId)
-        {
-            string url = $"{_baseUrl}/api/players/{playerId}/feedbacks";
-
-            // Kendi yardımcı metodun olan SendGetRequest'i kullanarak tutarlılık sağlıyoruz
-            string json = await SendGetRequest(url, false);
-
-            if (string.IsNullOrEmpty(json))
-            {
-                return new List<FeedbackDto>();
-            }
-
-            try
-            {
-                // Backend'den dönen FeedbackResponseDto listesini Unity tarafındaki FeedbackDto'ya çevirir
-                return JsonConvert.DeserializeObject<List<FeedbackDto>>(json);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"[APIManager] Feedback parse hatası: {ex.Message}");
-                return new List<FeedbackDto>();
-            }
-        }
-
-        // -------------------- GAME CONFIG --------------------
-        public async Task<GameAssetConfig> GetGameConfigAsync(long gameId, long letterId)
-        {
-            string url = $"{_baseUrl}/api/gameconfig/{gameId}/{letterId}";
-            string json = await SendGetRequest(url, false);
-
-            if (string.IsNullOrEmpty(json))
-                return null;
-
-            try
-            {
-                // Backend doğrudan GameAssetConfig şemasına uyan JSON döner
-                return JsonConvert.DeserializeObject<GameAssetConfig>(json);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError("[APIManager] GameConfig parse hatası: " + ex.Message);
-                return null;
-            }
-        }
-
-        // -------------------- ASSET SET --------------------
-        public async Task<AssetSetDto> GetAssetSetAsync(long letterId, string gameType, int difficulty)
-        {
-            string serverGameType = gameType;
-            if (gameType == "Kelime") serverGameType = "WORD";
-            else if (gameType == "Hece") serverGameType = "SYLLABLE";
-            else if (gameType == "Cümle") serverGameType = "SENTENCE";
-
-            string url = $"{_baseUrl}/api/assets/sets?letterId={letterId}&gameType={serverGameType}&difficulty={difficulty}";
-            string json = await SendGetRequest(url, false);
-
-            if (!string.IsNullOrEmpty(json) && json != "[]" && json != "{}")
-            {
-                try
-                {
-                    AssetSetDto realData = JsonConvert.DeserializeObject<AssetSetDto>(json);
-                    if (realData != null && realData.items != null && realData.items.Count > 0) return realData;
-                }
-                catch (Exception ex) { Debug.LogError("[API] JSON Çözümleme Hatası: " + ex.Message); }
-            }
-
-            // Mock Data (Yedek)
-            AssetSetDto mockData = new AssetSetDto
-            {
-                assetSetId = 1,
-                letterId = letterId,
-                gameType = serverGameType,
-                difficulty = difficulty,
-                items = new List<AssetItemDto>()
-            };
-            for (int i = 1; i <= 5; i++) mockData.items.Add(new AssetItemDto { imageUrl = "", audioUrl = "" });
-            return mockData;
-        }
-
-        // -------------------- NOTIFICATIONS --------------------
-=======
         // -------------------- NOTIFICATIONS (EKLENDİ) --------------------
         // Bu metot silindiği için hata alıyordunuz, geri eklendi.
->>>>>>> Stashed changes
         public async Task<int> GetUnreadNotificationCount(long playerId)
         {
             string url = $"{_baseUrl}/api/notifications/unread-count/{playerId}";
@@ -214,98 +117,54 @@ namespace GraduationProject.Managers
             }
         }
 
-        // -------------------- GAME CONFIG --------------------
-        public async Task<GameAssetConfig> GetGameConfigAsync(long gameId, long letterId)
+        // -------------------- NOTIFICATIONS (YENİ) --------------------
+
+        /// <summary>
+        /// Öğrenciye ait tüm okunmamış bildirimleri (terapist mesajlarını) getirir.
+        /// </summary>
+        public async Task<List<NotificationItem>> GetNotificationsAsync(long playerId)
         {
-            string url;
-            if (gameId == 4)
-                url = $"{_baseUrl}/api/asset-sets?gameId={gameId}&letterId={letterId}";
-            else
-                url = $"{_baseUrl}/api/gameconfig/{gameId}/{letterId}";
-
-            Debug.Log($"[APIManager] Config İsteniyor: {url}");
-
+            // Backend'de yazdığımız yeni endpoint: api/notifications/player/{id}
+            string url = $"{_baseUrl}/api/notifications/player/{playerId}";
             string json = await SendGetRequest(url, false);
 
-            if (string.IsNullOrEmpty(json) || json == "[]")
+            if (string.IsNullOrEmpty(json))
             {
-                Debug.LogError($"[APIManager] Veri BOŞ döndü! (GameId:{gameId})");
-                return null;
+                return new List<NotificationItem>();
             }
 
             try
             {
-                GameAssetConfig config = null;
-                string cleanJson = json.Trim();
-
-                // 1. Ana JSON Parse
-                if (cleanJson.StartsWith("["))
-                {
-                    var list = JsonConvert.DeserializeObject<List<GameAssetConfig>>(cleanJson);
-                    if (list != null && list.Count > 0) config = list[0];
-                }
-                else
-                {
-                    config = JsonConvert.DeserializeObject<GameAssetConfig>(cleanJson);
-                }
-
-                // 2. AssetJson Çözümleme (KUTUYU AÇMA)
-                if (config != null)
-                {
-                    // Eğer Items boşsa ama AssetJson doluysa, string'i listeye çevir
-                    if ((config.Items == null || config.Items.Count == 0) && !string.IsNullOrEmpty(config.AssetJson))
-                    {
-                        Debug.Log("[APIManager] AssetJson bulundu, listeye çevriliyor...");
-                        try
-                        {
-                            // Senin backend yapına göre AssetJson direkt bir listedir:
-                            config.Items = JsonConvert.DeserializeObject<List<AssetItem>>(config.AssetJson);
-                        }
-                        catch (System.Exception ex)
-                        {
-                            Debug.LogError($"[APIManager] AssetJson parse hatası: {ex.Message}");
-                        }
-                    }
-
-                    int finalCount = (config.Items != null) ? config.Items.Count : 0;
-                    Debug.Log($"[APIManager] Config Hazır. Toplam Asset: {finalCount}");
-                }
-
-                return config;
+                // Gelen listeyi NotificationItem modeline çevirir
+                return JsonConvert.DeserializeObject<List<NotificationItem>>(json);
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                Debug.LogError("[APIManager] JSON Parse Hatası: " + ex.Message);
-                return null;
+                Debug.LogError($"[APIManager] Notification parse hatası: {ex.Message}");
+                return new List<NotificationItem>();
             }
         }
 
-        // -------------------- GET TASKS --------------------
-        public async Task<List<TaskItem>> GetTasksAsync(long playerId)
+        /// <summary>
+        /// Belirli bir bildirimi veritabanında "okundu" olarak işaretler.
+        /// </summary>
+        public async Task<bool> MarkNotificationAsReadAsync(long notificationId)
         {
-            string url = $"{_baseUrl}/api/players/{playerId}/tasks?t={DateTime.Now.Ticks}";
-            string json = await SendGetRequest(url, false);
-            if (string.IsNullOrEmpty(json)) return null;
-            return JsonConvert.DeserializeObject<List<TaskItem>>(json);
-        }
+            // URL'nin sonuna /read eklediğimizden emin oluyoruz
+            string url = $"{_baseUrl}/api/notifications/{notificationId}/read";
 
-        // -------------------- ASSET SET --------------------
-        public async Task<AssetSetDto> GetAssetSetAsync(long letterId, string gameType, int difficulty)
-        {
-            string serverGameType = gameType == "Kelime" ? "WORD" : (gameType == "Hece" ? "SYLLABLE" : "SENTENCE");
-            string url = $"{_baseUrl}/api/assets/sets?letterId={letterId}&gameType={serverGameType}&difficulty={difficulty}";
-            string json = await SendGetRequest(url, false);
+            // Body boş olsa bile {} göndererek API'yi mutlu ediyoruz
+            string jsonBody = "{}";
 
-            if (!string.IsNullOrEmpty(json) && json != "[]" && json != "{}")
+            Debug.Log($"[API] Okundu isteği gönderiliyor: {url}");
+            string response = await SendPostRequest(url, jsonBody, false);
+
+            if (response != null)
             {
-                try
-                {
-                    AssetSetDto realData = JsonConvert.DeserializeObject<AssetSetDto>(json);
-                    if (realData != null && realData.items != null) return realData;
-                }
-                catch { }
+                Debug.Log("[API] Başarıyla okundu işaretlendi!");
+                return true;
             }
-            return null;
+            return false;
         }
 
         // -------------------- CORE REQUEST METHODS --------------------
@@ -372,6 +231,8 @@ namespace GraduationProject.Managers
             }
             return 0;
         }
+
+
 
 
     }
