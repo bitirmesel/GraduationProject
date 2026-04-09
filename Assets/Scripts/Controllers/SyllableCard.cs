@@ -11,6 +11,7 @@ using System;
 public class SyllableCard : MonoBehaviour
 {
     public string SyllableText { get; private set; }
+    public string AudioUrl { get; private set; }
     public bool IsCompleted { get; private set; } = false;
 
     private TMP_Text _label;
@@ -29,9 +30,10 @@ public class SyllableCard : MonoBehaviour
     /// <summary>
     /// Kartı oluşturur ve UI elemanlarını runtime'da yaratır.
     /// </summary>
-    public void Setup(string syllable, Action<SyllableCard> onClick)
+    public void Setup(string syllable, string audioUrl, Action<SyllableCard> onClick)
     {
         SyllableText = syllable;
+        AudioUrl = audioUrl;
         _onClickAction = onClick;
         IsCompleted = false;
 

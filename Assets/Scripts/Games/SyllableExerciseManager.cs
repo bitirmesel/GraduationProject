@@ -106,7 +106,7 @@ public class SyllableExerciseManager : BaseGameManager
 
             // SyllableCard bileşeni ekle ve başlat
             SyllableCard card = cardObj.AddComponent<SyllableCard>();
-            card.Setup(syllable, OnCardClicked);
+            card.Setup(syllable, item.audioUrl ?? "", OnCardClicked);
 
             _allCards.Add(card);
         }
@@ -157,10 +157,11 @@ public class SyllableExerciseManager : BaseGameManager
     {
         if (_selectedCard == null) return;
 
-        // Önce Resources'tan dene
-        if (AudioManager.Instance != null)
+        // 1. Cloudinary URL varsa oradan çek (AssetLoader önbellek kullanır)
+        if (!string.IsNullOrEmpty(_selectedCard.AudioUrl))
         {
-            AudioClip clip = Resources.Load<AudioClip>("Audio/" + _selectedCard.SyllableText);
+            string fileName = System.IO.Path.GetFileName(_selectedCard.AudioUrl);
+            AudioClip clip = await AssetLoader.Instance.GetAudioAsync(_selectedCard.AudioUrl, fileName);
             if (clip != null)
             {
                 _audioSource.clip = clip;
@@ -169,7 +170,15 @@ public class SyllableExerciseManager : BaseGameManager
             }
         }
 
-        // Resources'ta yoksa... (ileride Cloudinary'den çekilebilir)
+        // 2. Cloudinary yoksa Resources'tan dene (yedek)
+        AudioClip localClip = Resources.Load<AudioClip>("Audio/" + _selectedCard.SyllableText);
+        if (localClip != null)
+        {
+            _audioSource.clip = localClip;
+            _audioSource.Play();
+            return;
+        }
+
         Debug.Log($"[SyllableExercise] '{_selectedCard.SyllableText}' için ses dosyası bulunamadı.");
     }
 
