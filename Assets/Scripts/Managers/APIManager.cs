@@ -1,11 +1,11 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.Networking; // UnityWebRequest için gerekli
+using UnityEngine.Networking;
 using Newtonsoft.Json;
 using GraduationProject.Models;
-using System;
 
 namespace GraduationProject.Managers
 {
@@ -15,14 +15,7 @@ namespace GraduationProject.Managers
 
         [Header("API Settings")]
         [SerializeField] private string _baseUrl = "https://backendapi-8nfn.onrender.com";
-
-        // APIManager.cs içerisine, sınıf parantezleri içine ekle
         [SerializeField] private string _audioBaseUrl = "https://res.cloudinary.com/dd6zijhry/video/upload/";
-
-        public string GetAudioBaseUrl()
-        {
-            return _audioBaseUrl;
-        }
 
         private string _jwtToken;
 
@@ -35,27 +28,115 @@ namespace GraduationProject.Managers
             }
             else
             {
-                Destroy(this);
+                Destroy(gameObject);
                 return;
             }
-
-            Debug.Log("PERSISTENT PATH = " + Application.persistentDataPath);
 
             if (!string.IsNullOrEmpty(_baseUrl) && _baseUrl.EndsWith("/"))
                 _baseUrl = _baseUrl.TrimEnd('/');
         }
 
-        public string GetBaseUrl()
+        public string GetBaseUrl() => _baseUrl;
+        public string GetAudioBaseUrl() => _audioBaseUrl;
+
+        // ==========================================
+        // 1. AUTHENTICATION (LOGIN & REGISTER)
+        // ==========================================
+
+        public async Task<bool> RegisterPlayerAsync(string fullName, string email, string password, string passwordAgain, bool isGoingToClinic)
         {
-            return _baseUrl;
+            string url = $"{_baseUrl}/api/player/auth/register";
+
+            var requestData = new PlayerRegisterRequest
+            {
+                FullName = fullName,
+                Email = email,
+                Nickname = email,
+                Password = password,
+                PasswordAgain = passwordAgain,
+                IsGoingToClinic = isGoingToClinic
+            };
+
+            string jsonBody = JsonConvert.SerializeObject(requestData);
+            string response = await SendPostRequest(url, jsonBody, false);
+            return !string.IsNullOrEmpty(response);
         }
 
-        // -------------------- VERİ ANALİTİĞİ: SKOR KAYDETME (YENİ) --------------------
-        /// <summary>
-        /// Her kelime telaffuzundan sonra skoru backend'e kalıcı olarak kaydeder.
-        /// </summary>
-        // APIManager.cs
-        // APIManager.cs içindeki ilgili metot
+        public async Task<PlayerLoginResponseDto> PlayerLoginAsync(string nickname, string password)
+        {
+            string url = $"{_baseUrl}/api/player/auth/login";
+            var requestData = new PlayerLoginRequestDto { Nickname = nickname, Password = password };
+            string jsonBody = JsonConvert.SerializeObject(requestData);
+
+            string response = await SendPostRequest(url, jsonBody, false);
+            Debug.Log("[API RESPONSE RAW]: " + response);
+
+            if (string.IsNullOrEmpty(response)) return null;
+
+            try { return JsonConvert.DeserializeObject<PlayerLoginResponseDto>(response); }
+            catch (Exception ex)
+            {
+                Debug.LogError("[API] Deserialization hatası: " + ex.Message);
+                return null;
+            }
+        }
+
+        // ==========================================
+        // 2. GAME DATA (TASKS & CONFIGS)
+        // ==========================================
+
+        public async Task<List<TaskItem>> GetTasksAsync(long playerId)
+        {
+            string url = $"{_baseUrl}/api/players/{playerId}/tasks?t={DateTime.Now.Ticks}";
+            string json = await SendGetRequest(url, false);
+
+            if (string.IsNullOrEmpty(json)) return new List<TaskItem>();
+            return JsonConvert.DeserializeObject<List<TaskItem>>(json);
+        }
+
+        public async Task<GameAssetConfig> GetGameConfigAsync(long gameId, long letterId)
+        {
+            string url = $"{_baseUrl}/api/gameconfig/{gameId}/{letterId}";
+            string json = await SendGetRequest(url, false);
+
+            if (string.IsNullOrEmpty(json)) return null;
+            try { return JsonConvert.DeserializeObject<GameAssetConfig>(json); }
+            catch (Exception ex)
+            {
+                Debug.LogError("[APIManager] GameConfig parse hatası: " + ex.Message);
+                return null;
+            }
+        }
+
+        public async Task<AssetSetDto> GetAssetSetAsync(long letterId, string gameType, int difficulty)
+        {
+            string serverGameType = gameType switch
+            {
+                "Kelime" => "WORD",
+                "Hece" => "SYLLABLE",
+                "Cümle" => "SENTENCE",
+                _ => gameType
+            };
+
+            string url = $"{_baseUrl}/api/assets/sets?letterId={letterId}&gameType={serverGameType}&difficulty={difficulty}";
+            string json = await SendGetRequest(url, false);
+
+            if (!string.IsNullOrEmpty(json) && json != "[]" && json != "{}")
+            {
+                try
+                {
+                    var realData = JsonConvert.DeserializeObject<AssetSetDto>(json);
+                    if (realData != null && realData.items != null && realData.items.Count > 0) return realData;
+                }
+                catch { /* parse hatası */ }
+            }
+            return CreateMockAssetData(letterId, serverGameType, difficulty);
+        }
+
+        // ==========================================
+        // 3. ANALYTICS (SAVE SCORE)
+        // ==========================================
+
         public async Task<bool> SavePronunciationScoreAsync(int score, string targetWord)
         {
             string url = $"{_baseUrl}/api/gamesessions/finish";
@@ -63,111 +144,51 @@ namespace GraduationProject.Managers
             var requestData = new
             {
                 playerId = GameContext.PlayerId,
-                gameId = 4, // Hafıza Oyunu
+                gameId = 4,
                 letterId = GameContext.SelectedLetterId,
-                taskId = GameContext.CurrentTaskId, // KRİTİK: Bu oyun hangi göreve ait?
+                taskId = GameContext.CurrentTaskId,
                 score = score,
-                targetWord = targetWord, // "kedi", "köpek" vb.
+                targetWord = targetWord,
                 maxScore = 100
             };
 
             string jsonBody = JsonConvert.SerializeObject(requestData);
-            Debug.Log($"[API] Kelime Skoru Gönderiliyor: {targetWord} (TaskId: {GameContext.CurrentTaskId})");
-
             string response = await SendPostRequest(url, jsonBody, false);
             return response != null;
         }
 
-        // -------------------- PLAYER LOGIN --------------------
-        public async Task<PlayerLoginResponseDto> PlayerLoginAsync(string nickname, string password)
-        {
-            string url = $"{_baseUrl}/api/player/auth/login";
-            var requestData = new PlayerLoginRequestDto { Nickname = nickname, Password = password };
-            string jsonBody = JsonConvert.SerializeObject(requestData);
-            string response = await SendPostRequest(url, jsonBody, false);
+        // ==========================================
+        // 4. NOTIFICATIONS & FEEDBACKS
+        // ==========================================
 
-            if (string.IsNullOrEmpty(response)) return null;
-
-            try { return JsonConvert.DeserializeObject<PlayerLoginResponseDto>(response); }
-            catch { return null; }
-        }
-
-        // -------------------- NOTIFICATIONS (EKLENDİ) --------------------
-        // Bu metot silindiği için hata alıyordunuz, geri eklendi.
         public async Task<int> GetUnreadNotificationCount(long playerId)
         {
             string url = $"{_baseUrl}/api/notifications/unread-count/{playerId}";
-            using (var request = UnityWebRequest.Get(url))
-            {
-                request.SetRequestHeader("Content-Type", "application/json");
-
-                // Auth token varsa ekleyelim
-                if (!string.IsNullOrEmpty(_jwtToken))
-                    request.SetRequestHeader("Authorization", $"Bearer {_jwtToken}");
-
-                var operation = request.SendWebRequest();
-                while (!operation.isDone) await Task.Yield();
-
-                if (request.result == UnityWebRequest.Result.Success)
-                {
-                    string jsonResponse = request.downloadHandler.text;
-                    if (int.TryParse(jsonResponse, out int count)) return count;
-                }
-                return 0;
-            }
+            string response = await SendGetRequest(url, false);
+            if (int.TryParse(response, out int count)) return count;
+            return 0;
         }
 
-        // -------------------- NOTIFICATIONS (YENİ) --------------------
-
-        /// <summary>
-        /// Öğrenciye ait tüm okunmamış bildirimleri (terapist mesajlarını) getirir.
-        /// </summary>
         public async Task<List<NotificationItem>> GetNotificationsAsync(long playerId)
         {
-            // Backend'de yazdığımız yeni endpoint: api/notifications/player/{id}
             string url = $"{_baseUrl}/api/notifications/player/{playerId}";
             string json = await SendGetRequest(url, false);
 
-            if (string.IsNullOrEmpty(json))
-            {
-                return new List<NotificationItem>();
-            }
-
-            try
-            {
-                // Gelen listeyi NotificationItem modeline çevirir
-                return JsonConvert.DeserializeObject<List<NotificationItem>>(json);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"[APIManager] Notification parse hatası: {ex.Message}");
-                return new List<NotificationItem>();
-            }
+            if (string.IsNullOrEmpty(json)) return new List<NotificationItem>();
+            return JsonConvert.DeserializeObject<List<NotificationItem>>(json);
         }
 
-        /// <summary>
-        /// Belirli bir bildirimi veritabanında "okundu" olarak işaretler.
-        /// </summary>
         public async Task<bool> MarkNotificationAsReadAsync(long notificationId)
         {
-            // URL'nin sonuna /read eklediğimizden emin oluyoruz
             string url = $"{_baseUrl}/api/notifications/{notificationId}/read";
-
-            // Body boş olsa bile {} göndererek API'yi mutlu ediyoruz
-            string jsonBody = "{}";
-
-            Debug.Log($"[API] Okundu isteği gönderiliyor: {url}");
-            string response = await SendPostRequest(url, jsonBody, false);
-
-            if (response != null)
-            {
-                Debug.Log("[API] Başarıyla okundu işaretlendi!");
-                return true;
-            }
-            return false;
+            string response = await SendPostRequest(url, "{}", false);
+            return response != null;
         }
 
-        // -------------------- CORE REQUEST METHODS --------------------
+        // ==========================================
+        // 5. CORE ENGINE (NETWORK REQUESTS)
+        // ==========================================
+
         private async Task<string> SendPostRequest(string url, string jsonBody, bool requiresAuth)
         {
             using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
@@ -201,39 +222,16 @@ namespace GraduationProject.Managers
             }
         }
 
-        public async Task<PronunciationResult> CheckPronunciationAsync(byte[] audioData)
+        private AssetSetDto CreateMockAssetData(long letterId, string type, int diff)
         {
-            await Task.Yield();
-            return new PronunciationResult();
-        }
-
-        public async Task<long> StartGameSessionAsync()
-        {
-            string url = $"{_baseUrl}/api/gamesessions/start";
-
-            // GameContext'teki güncel seçimleri gönderiyoruz
-            var requestData = new
+            return new AssetSetDto
             {
-                playerId = GameContext.PlayerId,
-                gameId = 4, // Hafıza oyunu sabit ID'si
-                letterId = GameContext.SelectedLetterId,
-                assetSetId = GameContext.SelectedAssetSetId
+                assetSetId = 1,
+                letterId = letterId,
+                gameType = type,
+                difficulty = diff,
+                items = new List<AssetItemDto> { new AssetItemDto { imageUrl = "", audioUrl = "" } }
             };
-
-            string jsonBody = JsonConvert.SerializeObject(requestData);
-            string response = await SendPostRequest(url, jsonBody, false);
-
-            if (!string.IsNullOrEmpty(response))
-            {
-                // Backend'den dönen sessionId'yi parse et
-                var resObj = JsonConvert.DeserializeObject<Dictionary<string, long>>(response);
-                return resObj["sessionId"];
-            }
-            return 0;
         }
-
-
-
-
     }
 }

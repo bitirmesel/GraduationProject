@@ -65,12 +65,11 @@ namespace GraduationProject.Controllers
             // --- 2. Terapistten Gelen Genel Mesajlar (Notifications) ---
             if (notifCount > 0)
             {
-                sb.AppendLine("<size=120%><color=#3498DB>✉️ Terapist Notu</color></size>");
+                sb.AppendLine("<size=120%><color=#3498DB>Terapist Notu</color></size>");
                 sb.AppendLine();
                 foreach (var notif in _notifications)
                 {
                     sb.AppendLine($"<color=#3498DB><b>Not:</b></color> {notif.message}");
-                    sb.AppendLine("------------------------------------");
                 }
                 sb.AppendLine();
             }
@@ -78,7 +77,7 @@ namespace GraduationProject.Controllers
             // --- 3. Atanan Görevler ---
             if (taskCount > 0)
             {
-                sb.AppendLine("<size=120%><color=#FFA500>📅 Görevlerin</color></size>");
+                sb.AppendLine("<size=120%><color=#FFA500>Görevlerin</color></size>");
                 sb.AppendLine();
                 foreach (var task in _tasks)
                 {
