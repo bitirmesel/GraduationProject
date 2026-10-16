@@ -75,9 +75,10 @@ Faz 2, tez demosunda "çocuk oynar → terapist görür" akışını sorunsuz ha
 | PR-02 | 1 | BE | Şifre alanı ve hata detayı sızıntısını durdur | **P0** | — | ✅ [BE#4](https://github.com/bitirmesel/BackendApi/pull/4) — `pj6y` yayında; ⚠️ `8nfn` deploy etmedi (PR-12) |
 | PR-03 | 1 | BE | Yerel geliştirme veritabanı (docker-compose + şema + seed) | P0 | — | ⬜ |
 | PR-04 | 1 | FN | İstek/yanıt gövdelerini loglamayı kaldır (şifre, kişisel veri) | **P0** | — | ✅ [FN#18](https://github.com/bitirmesel/Fonem/pull/18) |
-| PR-05 | 1 | PN | Şifreyi cihazda saklama, çıkışta oturumu temizle | **P0** | — | 🟨 [PN#2](https://github.com/bitirmesel/advisor_panel_app/pull/2) |
-| PR-06 | 2 | BE | Görev yanıtına `therapistId`, oyun tipi, zorluk ekle | **P1** | — | ⬜ |
-| PR-07 | 2 | FN | Görev yönlendirmesi: oyun ID/tip/zorlukla; Story/Fill Gap; inbox rozeti | **P1** | PR-06 | ⬜ |
+| PR-05 | 1 | PN | Şifreyi cihazda saklama, çıkışta oturumu temizle | **P0** | — | ✅ [PN#2](https://github.com/bitirmesel/advisor_panel_app/pull/2) |
+| PR-06 | 2 | BE | Görev yanıtına oyun tipi ve zorluk ekle | **P1** | — | ✅ [BE#5](https://github.com/bitirmesel/BackendApi/pull/5) |
+| PR-06b | 2 | BE | Görev yanıtına terapist bilgisi ekle | P1 | ⛔ PR-07'li Fonem cihazlarda | 🟨 [BE#6](https://github.com/bitirmesel/BackendApi/pull/6) draft |
+| PR-07 | 2 | FN | Görev yönlendirmesi: oyun ID/tip/zorlukla; Story/Fill Gap; inbox rozeti | **P1** | PR-06 | ✅ [FN#19](https://github.com/bitirmesel/Fonem/pull/19) |
 | PR-08 | 2 | FN | Cümle oyunu varlıklarını paketle; tek geçme eşiği (`passed`); `http` bağımlılığı | **P1** | — | ⬜ |
 | PR-09 | 2 | FN | Sözleşme düzeltmeleri: bildirim okundu POST, profil yolu, gameconfig çift çağrı | P1 | — | ⬜ |
 | PR-10 | 2 | PN | Terapist kaydını düzelt (+ şifre kırpma, doğrulama) | **P1** | — | ⬜ |
@@ -96,6 +97,8 @@ Faz 2, tez demosunda "çocuk oynar → terapist görür" akışını sorunsuz ha
 | PR-24 | 5 | BE+FN | Ses kaydı saklama politikası + KVKK onayının backend'de tutulması | P1 | PR-15 | ⬜ |
 | PR-25+ | 5 | FN+BE | Yeni oyunlar ve gerçek içerik (Cümle S1-S3, "Yakında" oyunlar) | P2 | PR-07 | ⬜ |
 | PR-26 | 5 | UN | Unity reposunu emekliye ayır (README notu + GitHub arşiv) | P2 | doküman yeri kararı | ⬜ |
+| PR-27 | 2 | BE | `GET /api/players` 500 hatası (NULL alanlı oyuncu kaydı) | P1 | — | ⬜ |
+| PR-28 | 2 | PN+BE | İstemcisi olmayan oyunlar (Fill Gap) görev olarak atanamasın | P1 | — | ⬜ |
 | — | — | UN | ~~Unity: telaffuz DTO, oturum kaydı, LevelMap, hece oyunu, küçük düzeltmeler, token, davet ekranı~~ | — | — | 🗑️ Unity emekli (2026-10-16) |
 
 ---
@@ -165,15 +168,20 @@ Kod hazır, review'dan geçti. **Merge ön koşulu 🔑:** Render'da **iki servi
 
 ## 5. Faz 2 — Uçtan uca akış (tez demosu için kritik)
 
-### PR-06 · BE · Görev yanıtını zenginleştir
+### PR-06 · BE · Görev yanıtını zenginleştir — ✅ BE#5
 
-`GET /api/players/{id}/tasks` (ve `/tasks/active`) yanıtına **yeni alanlar** eklenir; mevcut alanlar korunur:
-`therapistId`, `therapistName`, `gameTypeCode` (`SYLLABLE|WORD|SENTENCE`), `difficultyLevel` (1-3), `assetSetId`.
+İki endpoint ortak `PlayerTaskDto`'yu paylaşıyor: `gameTypeCode`, `difficultyLevel`, iç içe `game {gameType{code}, difficultyLevel{level}}`. Eski alanlar korundu.
 
-**Kabul:** Swagger'da yeni alanlar görünüyor · panel ve Fonem'in mevcut sürümleri çalışmaya devam ediyor.
-**Merge sırası:** PR-06 → PR-07.
+> **Review'da kapsam değişti:** `therapistId` bilerek çıkarıldı. Eski Fonem, `therapistId > 0` görünce terapistin **tüm öğrencilerinin** bildirim akışını (çocuk adlarıyla) rozet ve yedek listede kullanıyordu → PR-06b'ye ayrıldı.
 
-### PR-07 · FN · Görev yönlendirmesi
+### PR-06b · BE · Görev yanıtına terapist bilgisi — 🟨 BE#6 (draft)
+
+`therapistId`, `therapistName`, `therapist {id, name, clinicName}` (e-posta/telefon yok). Fonem profil kartı ve görev kartı bu alanlarla doluyor (bugün boş).
+**⛔ Merge koşulu:** PR-07'yi (FN#19) içeren Fonem sürümü test cihazlarına yüklenmiş olmalı; backend değişikliği eski sürümleri anında etkiler.
+
+### PR-07 · FN · Görev yönlendirmesi — ✅ FN#19
+
+> Yapılan: `resolveTaskGameKind` (önce `KnownGameIds` kataloğu, sonra tip kodu, sonra ad), hece seviyesi `gameId`'den, Story/Fill Gap düzeltildi, kategori düzeyindeki `SENTENCE` eşlemesi kaldırıldı. Rozet ve yedek liste çocuğun kendi inbox'ından; terapist akışı Fonem'den tamamen çıktı. Sahte bildirim verisi ve null-assert çökme riski kaldırıldı. 19 birim testi. Cihazda uçtan uca denenmedi.
 
 1. `game_task_registry.dart`: önce **`gameId`** ile eşle (1-10 tablosu), ad eşleştirmesi yalnızca yedek.
 2. Hece görevleri doğru seviyeyi açsın (S2/S3 → gameId 2/3 içerik ve oturum).
@@ -212,6 +220,7 @@ Kod hazır, review'dan geçti. **Merge ön koşulu 🔑:** Render'da **iki servi
 3. Raporlardaki sabit "canlı seans" demo kartı kaldırılsın.
 4. "Şifremi unuttum": sahte başarı yerine "Terapistinize/yöneticiye başvurun" bilgisi (gerçek akış ayrı iş).
 5. `lastActive` boşken "3 dk önce" yerine "—".
+6. (Backlog B15) `/api/students` `age`/`registeredAt`, terapist `title`, `stats.weeklyProgress` dummy verisi, terapist bildirimlerinde hep `unread = true` ve `markAsRead` TODO: ya backend'e eklenir ya da panelde gösterilmez.
 
 ### PR-12 · BE+FN+PN · Tek backend servisi — ⏸️ Render erişimi bekliyor
 
@@ -239,6 +248,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 - **Sahiplik:** terapist yalnızca `therapist_clients`'taki çocukları, oyuncu yalnızca kendi verisini görür; `therapistId`/`playerId` token'dan okunur.
 - Açık kalanlar: login/register, lookup, `invitations/redeem` (oyuncu token'ı ile).
 - Debug endpoint'leri (`/api/players`, `/api/tasks`, `/api/gamesessions/all`, `/api/admin/*`) `admin` rolüne veya yalnızca Development'a.
+- (Backlog B4) `/api/therapists/{id}/notifications` yalnızca o terapistin token'ıyla erişilebilir olsun (bugün herkes, tüm öğrencilerin adlarıyla okuyabiliyor).
 - Swagger: prod'da `admin` rolüne veya `ENABLE_SWAGGER=true`'ya bağlanır (PR-02'den taşındı).
 - Entity dönen endpoint'ler (`/students/{id}`, `/therapists/{id}`, `POST /notifications`) DTO'ya çevrilir.
 
@@ -279,5 +289,56 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | 2026-10-16 | ADIM 0 ekip kararıyla ertelendi. Repolar o tarihte public durumdaydı; sırlar yenilenene kadar risk açık kabul edildi. |
 | 2026-10-16 | PR akışına **CI + Claude review** adımı eklendi; PR-17 (CI) öne çekildi. PR-01 Render erişimi olmadığı için draft'a alındı. |
 | 2026-10-16 | PR-00 ve PR-17 merge edildi; PR-02 açıldı (Swagger maddesi PR-15'e taşındı). |
+| 2026-10-16 | PR-05 (PN#2), PR-06 (BE#5), PR-07 (FN#19) merge edildi; PR-06b (BE#6) draft. PR dışı bulgular §10 Backlog'da toplandı; yeni kartlar PR-27, PR-28. |
 | 2026-10-16 | PR-02 (BE#4) ve PR-04 (FN#18) merge edildi. `8nfn` servisinin `main`'i deploy etmediği tespit edildi → PR-12 P0'a yükseltildi. |
 | 2026-10-16 | **Fonem (Flutter çocuk) ve advisor_panel_app (Flutter terapist) incelendi. Karar: Fonem esas, Unity emekli.** Unity kartları iptal edildi; Faz 1-5 Fonem ve panel kartlarıyla yeniden düzenlendi (PR-04…PR-12, PR-18…PR-26). İki Render servisi tespit edildi (PR-12). BE#2 review'undaki "Unity düzeltmesi PR-04" notu geçersizdir; ilgili konu Fonem'de sorun değil. |
+
+---
+
+## 10. Fark Edilenler (Backlog)
+
+> PR'lar sırasında **kapsam dışında** fark edilen her şey burada toplanır; hiçbiri yalnızca PR yorumunda ya da sohbette kalmaz.
+> **Kural:** Yeni bir bulgu çıktığında (review, canlı kontrol, analiz) ya bir karta bağlanır ya da buraya yeni satır olarak eklenir. Kapanınca ✅ ile işaretlenir, silinmez.
+>
+> Öncelik: 🔴 acil · 🟠 yüksek · 🟡 orta · 🟢 düşük
+
+| # | Bulgu | Nerede fark edildi | Öncelik | Bağlandığı kart / durum |
+|---|---|---|---|---|
+| B1 | **`8nfn` servisi `main`'i deploy etmiyor**; Fonem eski backend'le konuşuyor (şifre alanı hâlâ dönüyor) | PR-02 sonrası canlı kontrol | 🔴 | PR-12 · 🔑 Render erişimi |
+| B2 | Repolar public, sırlar git geçmişinde | İlk inceleme | 🔴 | ADIM 0 (ertelendi) + PR-01 (draft) |
+| B3 | `GET /api/players` **iki serviste de 500** | PR-06 canlı veri kontrolü | 🟠 | **PR-27** (yeni) |
+| B4 | `/api/therapists/{id}/notifications` terapistin **tüm öğrencilerinin** olaylarını çocuk adlarıyla, kimlik doğrulamasız dönüyor | PR-06 review | 🟠 | PR-15 (yalnızca terapist token'ı). Fonem'deki kullanımı PR-07'de kaldırıldı ✅ |
+| B5 | Fill Gap (ID 9) panelden atanabiliyor ama Fonem'de oyunu yok → görev hiç tamamlanamıyor | PR-07 review | 🟠 | **PR-28** (yeni) |
+| B6 | PR-06b, eski Fonem sürümleri yüzünden yalnızca cihazlar güncellendikten sonra merge edilebilir | PR-06b | 🟠 | PR-06b merge koşulu · 🔑 cihaz güncellemesi |
+| B7 | `main` dalları korumasız (branch protection yok), 4 repoda | PR-00 | 🟡 | 🔑 GitHub ayarı (hesap sahibi) |
+| B8 | `POST /api/notifications` EF entity'sini doğrudan bağlıyor (mass assignment; iç içe `player` yeni satır ekleyebilir) | PR-02 review | 🟡 | PR-15 (DTO'lar) |
+| B9 | DB'de FK kısıtları bilinmiyor; yeni INNER JOIN'ler sahipsiz kayıtları gizleyebilir | PR-06 / PR-06b review | 🟡 | PR-03 (şema dökümü + FK doğrulama) |
+| B10 | Kestrel 5194, Dockerfile'daki 10000 portunu eziyor | PR-01 review | 🟡 | Karar → PR-22 |
+| B11 | Tez raporu güncel değil: Unity'yi çocuk uygulaması, backend'i "Java Spring" olarak anlatıyor; BCrypt/RBAC var diyor | Fonem analizi (PDF) | 🟡 | Faz 5 "Tez" · PR-13/PR-15 sonrası |
+| B12 | Panel: JWT düz SharedPreferences'ta; `AuthService` doğrudan `http.post` çağırdığı için test edilemiyor | PR-05 | 🟡 | PR-19 |
+| B13 | Oturum kontrolü: panel her açılışta girişe gidiyor; Fonem `player_id` varsa token olmadan doğrudan ana sayfaya | PR-05 / analiz | 🟡 | PR-18 / PR-19 |
+| B14 | Fonem release'de zararsız ama gereksiz loglar (asset URL, oyun ID) | PR-04 | 🟢 | PR-23 |
+| B15 | Panel: `/api/students` `age`/`registeredAt` dönmüyor; `title` alanı yok; `stats.weeklyProgress` sabit dummy; terapist bildirimlerinde `unread` hep `true`, `markAsRead` TODO | Panel analizi | 🟢 | PR-11 kapsamına eklendi |
+| B16 | Whisper hattında uzun, tam eşleşmeyen kelimeler 0 puan; `ş/s`, `ç/c`, `ı/i` ayrımı yok sayılıyor | Backend analizi | 🟢 | Karar · ARCHITECTURE §12 |
+| B17 | Fonem web derlemesi `webm` yüklüyor, backend yalnızca WAV okuyor | Fonem analizi | 🟢 | PR-09 |
+| B18 | Bildirim ayarları (push/e-posta) iki uygulamada da yalnızca cihazda; hiçbir şeyi tetiklemiyor | Analiz | 🟢 | Kart yok (ürün kararı) |
+| B19 | SDK kaynaklı `ArgumentException` mesajı 400 olarak dönebilir | PR-02 review | 🟢 | ✅ Bilinçli karar, değişiklik yok |
+| B20 | Fonem `difficultyLevelId`'yi seviye numarası olarak kullanıyordu | PR-06 review | 🟢 | ✅ PR-07'de çözüldü |
+| B21 | Fonem profil kartı terapisti hiç gösteremiyor (`therapistId = 0`) | PR-06b hazırlığı | 🟢 | PR-06b |
+
+### PR-27 · BE · `GET /api/players` 500 hatası
+
+1. Hatanın kaynağını bul (`ErrorLog` ile loglanan hata kodu veya yerel dev DB). Muhtemel neden: `players.name`/`email` NULL, entity'de NULL olamayan `string`.
+2. Projeksiyonda NULL'a dayanıklı ol (`p.Name ?? ""`) ya da veriyi düzelt + kolona `NOT NULL` kısıtı.
+3. Bu debug endpoint'i PR-15'te `admin` rolüne alınacak; o zamana kadar en azından çökmesin.
+
+**Kabul:** İki serviste de 200; kayıt sayısı `/api/tasks`'taki oyuncu sayısıyla tutarlı.
+
+### PR-28 · PN+BE · İstemcisi olmayan oyunlar atanamasın
+
+1. BE: `games` için "istemcide hazır" bilgisi (`is_active` kolonu ya da yapılandırma listesi); `/api/lookup/games` bunu dönsün.
+2. PN: görev atama diyaloğunda yalnızca aktif oyunlar listelensin.
+3. Hâlihazırda atanmış Fill Gap görevleri için karar: iptal mi, tamamlandı mı?
+
+**Kabul:** Panelde Fill Gap seçilemiyor; Fonem'de "çok yakında" görevi kalmıyor.
+
