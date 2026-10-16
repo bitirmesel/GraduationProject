@@ -338,7 +338,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | B20 | Fonem `difficultyLevelId`'yi seviye numarası olarak kullanıyordu | PR-06 review | 🟢 | ✅ PR-07'de çözüldü |
 | B21 | Fonem profil kartı terapisti hiç gösteremiyor (`therapistId = 0`) | PR-06b hazırlığı | 🟢 | PR-06b |
 | B22 | **Geçme eşikleri tutarsız:** Hafıza/Gölge 70; Üçlü/Meslek/Hikâye 80; Hece 85 istiyor ama backend `passed` (70) ile geçiyor. Tek eşik bazı oyunları kolaylaştırır | PR-08 | 🟡 | **Karar** (terapötik) · sonra küçük FN PR'ı |
-| B23 | E-posta benzersizliği ve giriş **büyük/küçük harfe duyarlı** (`t.Email == req.Email`): "Ahmet@x.com" ve "ahmet@x.com" iki hesap | PR-10 review | 🟡 | Kart yok → BE: yazarken normalize + case-insensitive karşılaştırma (mevcut hesaplar için geçiş planıyla) |
+| B23 | E-posta benzersizliği ve giriş **büyük/küçük harfe duyarlı** (`t.Email == req.Email`): "Ahmet@x.com" ve "ahmet@x.com" iki hesap | PR-10 review | 🟡 | ✅ [BE#12](https://github.com/bitirmesel/BackendApi/pull/12) |
 | B24 | Terapistin **şifresiz** oluşturduğu öğrenciler hiç giriş yapamıyor | PR-27 | 🟡 | **Karar:** öğrenci oluştururken şifre zorunlu mu, yalnızca davet kodu mu? |
 | B25 | Şema EF dışında kurulduğu için 15 string alan daha modelde NOT NULL ama DB'de NULL olabilir (aynı hata sınıfı) | PR-27 review | 🟡 | PR-03 (şema dökümü + nullability hizalama) |
 | B26 | `asset_sets.asset_json` modelde nullable'dı ama migration'ı yoktu (snapshot kopukluğu) | PR-27 | 🟢 | ✅ PR-27 migration'ında kapandı |
