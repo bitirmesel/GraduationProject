@@ -3,7 +3,7 @@
 > Bu dosya [ARCHITECTURE.md](ARCHITECTURE.md)'deki bulguların **önceliklendirilmiş iş planıdır**.
 > Her satır bir PR'dır. Durum değişiklikleri `docs/roadmap-durum` dalında toplanıp doküman PR'ıyla `main`'e alınır.
 >
-> **Repo kısaltmaları:** `BE` = [BackendApi](https://github.com/bitirmesel/BackendApi) · `FN` = [Fonem](https://github.com/bitirmesel/Fonem) (Flutter çocuk) · `PN` = [advisor_panel_app](https://github.com/bitirmesel/advisor_panel_app) (Flutter terapist) · `UN` = [GraduationProject](https://github.com/bitirmesel/GraduationProject) (Unity, emekli)
+> **Repo kısaltmaları:** `BE` = [BackendApi](https://github.com/bitirmesel/BackendApi) · `FN` = [Fonem](https://github.com/bitirmesel/Fonem) (Flutter çocuk) · `PN` = [advisor_panel_app](https://github.com/bitirmesel/advisor_panel_app) (Flutter terapist) · `UN` = [GraduationProject](https://github.com/bitirmesel/GraduationProject) (Unity demosu, gözden çıkarıldı; şimdilik bu dokümanları barındırıyor)
 >
 > **Durum:** ⬜ başlamadı · 🔧 yapılıyor · 🟨 PR açık · ✅ merge edildi · ⏸️ beklemede · 🗑️ iptal
 
@@ -96,11 +96,11 @@ Faz 2, tez demosunda "çocuk oynar → terapist görür" akışını sorunsuz ha
 | PR-23 | 4 | FN+PN | Ölü kod/paket temizliği, gerçek app id, release imzası, repo hijyeni | P2 | — | ◐ temizlik: ✅ [FN#23](https://github.com/bitirmesel/Fonem/pull/23) · ✅ [PN#5](https://github.com/bitirmesel/advisor_panel_app/pull/5); app id + imza ⏸️ hesap sahibi |
 | PR-24 | 5 | BE+FN | Ses kaydı saklama politikası + KVKK onayının backend'de tutulması | P1 | PR-15 | ⬜ |
 | PR-25+ | 5 | FN+BE | Yeni oyunlar ve gerçek içerik (Cümle S1-S3, "Yakında" oyunlar) | P2 | PR-07 | ⬜ |
-| PR-26 | 5 | UN | Unity reposunu emekliye ayır (README notu + GitHub arşiv) | P2 | doküman yeri kararı | ⬜ |
+| PR-26 | 5 | UN | Unity demosunu kaldır / repoyu arşivle (dokümanlar taşındıktan sonra) | P2 | doküman yeri kararı | ⬜ |
 | PR-27 | 2 | BE | `GET /api/players` 500 hatası (NULL alanlı oyuncu kaydı) | P1 | — | ✅ [BE#7](https://github.com/bitirmesel/BackendApi/pull/7) (`pj6y`'de doğrulandı) |
 | PR-28 | 2 | PN+BE | İstemcisi olmayan oyunlar (Fill Gap) görev olarak atanamasın | P1 | — | ⬜ |
 | PR-29 | 1 | BE | Npgsql güvenlik açığı CVE-2024-32655 (8.0.2 → 8.0.9) | **P0** | — | ✅ [BE#10](https://github.com/bitirmesel/BackendApi/pull/10) |
-| — | — | UN | ~~Unity: telaffuz DTO, oturum kaydı, LevelMap, hece oyunu, küçük düzeltmeler, token, davet ekranı~~ | — | — | 🗑️ Unity emekli (2026-10-16) |
+| — | — | UN | ~~Unity: telaffuz DTO, oturum kaydı, LevelMap, hece oyunu, küçük düzeltmeler, token, davet ekranı~~ | — | — | 🗑️ Unity yalnızca demoydu, gözden çıkarıldı (2026-10-16) |
 
 ---
 
@@ -279,7 +279,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 |---|---|
 | **PR-24** BE+FN | Değerlendirme sonrası Cloudinary kayıtları silinsin (veya private teslimat); Fonem'in KVKK onayı backend'e kaydedilsin (`players.guardian_consent_at`); aydınlatma metni sürümü. |
 | **PR-25+** | Her yeni oyun için ayrı PR: içerik (asset JSON) + Fonem ekranı + `game_task_registry`. Sıra önerisi: Cümle S1 gerçek içerik → Cümle S2 Fill Gap → Cümle S3 Story (asset'ten). Açık harflerin (B, T, K) genişletilmesi içerik hazır oldukça. |
-| **PR-26** UN | Unity README'sine "emekli, Fonem'e taşındı" notu; GitHub'da repo arşivlenir. Dokümanların yeni yeri kararlaştırıldıktan sonra. |
+| **PR-26** UN | Dokümanlar yeni yerine taşındıktan sonra: Unity demosu repodan kaldırılır ya da repo README notuyla ("erken demo, Fonem'e taşındı") GitHub'da arşivlenir. Repo arşivlenirse bu dokümanlar salt okunur olur; bu yüzden önce yer kararı. |
 | **Tez** | Final raporu güncellenmeli: çocuk = Fonem (Flutter), terapist = advisor_panel_app, backend = .NET (Java/Spring ifadeleri), Whisper hattı, güvenlik iddiaları (BCrypt/RBAC) yalnızca PR-13/PR-15 sonrası. |
 
 **Bekleyen kararlar:** tek backend servisi (PR-12) · Kestrel portu · `ş/s`, `ç/c`, `ı/i` ayrımı · uzun kelimelerde Whisper puanlaması · dokümanların yeri. Bkz. [ARCHITECTURE §12](ARCHITECTURE.md#12-açık-sorular-ve-kararlar).
@@ -294,6 +294,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | 2026-10-16 | ADIM 0 ekip kararıyla ertelendi. Repolar o tarihte public durumdaydı; sırlar yenilenene kadar risk açık kabul edildi. |
 | 2026-10-16 | PR akışına **CI + Claude review** adımı eklendi; PR-17 (CI) öne çekildi. PR-01 Render erişimi olmadığı için draft'a alındı. |
 | 2026-10-16 | PR-00 ve PR-17 merge edildi; PR-02 açıldı (Swagger maddesi PR-15'e taşındı). |
+| 2026-10-16 | Unity'nin yalnızca erken bir demo olduğu netleşti; **tamamen gözden çıkarıldı** (düzeltme, test ve backend uyumluluğu yok). ARCHITECTURE tablolarından Unity sütunu/tüketicisi kaldırıldı. FluentMe hattının tüketicisi kalmadı → B31. |
 | 2026-10-16 | Otonom tur (2): PR-22 (BE#9), PR-23a (FN#23), PR-29 (BE#10, yeni — Npgsql CVE) ve PR-23b (PN#5) merge edildi. App id / release imzası bilinçli olarak bırakıldı. Backlog B28-B30. |
 | 2026-10-16 | Otonom tur: PR-27 (BE#7), PR-08 (FN#20), PR-09 (FN#21), PR-10 (PN#3), PR-16 (BE#8), PR-20 (FN#22, PN#4) merge edildi. PR-08 kapsamı daraldı (eşik → karar B22), PR-09'daki gameconfig maddesi geçersiz çıktı. Backlog B22-B27. |
 | 2026-10-16 | PR-05 (PN#2), PR-06 (BE#5), PR-07 (FN#19) merge edildi; PR-06b (BE#6) draft. PR dışı bulgular §10 Backlog'da toplandı; yeni kartlar PR-27, PR-28. |
@@ -321,7 +322,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | B8 | `POST /api/notifications` EF entity'sini doğrudan bağlıyor (mass assignment; iç içe `player` yeni satır ekleyebilir) | PR-02 review | 🟡 | PR-15 (DTO'lar) |
 | B9 | DB'de FK kısıtları bilinmiyor; yeni INNER JOIN'ler sahipsiz kayıtları gizleyebilir | PR-06 / PR-06b review | 🟡 | PR-03 (şema dökümü + FK doğrulama) |
 | B10 | Kestrel 5194, Dockerfile'daki 10000 portunu eziyor | PR-01 review | 🟡 | Karar → PR-22 |
-| B11 | Tez raporu güncel değil: Unity'yi çocuk uygulaması, backend'i "Java Spring" olarak anlatıyor; BCrypt/RBAC var diyor | Fonem analizi (PDF) | 🟡 | Faz 5 "Tez" · PR-13/PR-15 sonrası |
+| B11 | Tez raporu güncel değil: Unity demosunu çocuk uygulaması, backend'i "Java Spring" olarak anlatıyor; BCrypt/RBAC var diyor | Fonem analizi (PDF) | 🟡 | Faz 5 "Tez" · PR-13/PR-15 sonrası |
 | B12 | Panel: JWT düz SharedPreferences'ta; `AuthService` doğrudan `http.post` çağırdığı için test edilemiyor | PR-05 | 🟡 | PR-19 |
 | B13 | Oturum kontrolü: panel her açılışta girişe gidiyor; Fonem `player_id` varsa token olmadan doğrudan ana sayfaya | PR-05 / analiz | 🟡 | PR-18 / PR-19 |
 | B14 | Fonem release'de zararsız ama gereksiz loglar (asset URL, oyun ID) | PR-04 | 🟢 | PR-23 |
@@ -341,6 +342,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | B28 | **Npgsql 8.0.2'de yüksek önemli SQL injection açığı (CVE-2024-32655)** | PR-22 build uyarısı (NU1903) | 🔴 | ✅ PR-29; ⚠️ `8nfn` hâlâ eski sürümde (B1) |
 | B29 | `Models/FluentMe/*` kullanılmıyor ama `PronunciationController` `using` ediyor | PR-22 | 🟢 | PR-01 merge edildikten sonra sil (aynı dosya, çakışmasın) |
 | B30 | Fonem ve panelde **uyarılar sıfır**, CI artık uyarılarda da başarısız; bilgi notları (deprecated API: Fonem 56, panel ~105) henüz fatal değil | PR-23 | 🟢 | Kart yok (deprecated API güncellemesi) |
+| B31 | **FluentMe hattının (`/api/pronunciation/check`) tüketicisi kalmadı**: tek kullanıcısı Unity demosuydu; Fonem'deki `checkPronunciation` çağrılmayan ölü kod. Kaldırılırsa PR-01'de `FluentMe__*` değişkenleri gerekmez ve sızan FluentMe sırları için hesap kapatmak yeterli olur. Kelime puanlamasında FluentMe'ye dönüş seçeneği (ARCHITECTURE §12 soru 2) ile birlikte karar verilmeli | Unity gözden çıkarıldı (2026-10-16) | 🟡 | Karar · kaldırılırsa B29 da kapanır |
 
 ### PR-27 · BE · `GET /api/players` 500 hatası — ✅ BE#7
 
