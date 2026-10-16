@@ -75,7 +75,7 @@ Faz 2, tez demosunda "çocuk oynar → terapist görür" akışını sorunsuz ha
 | PR-02 | 1 | BE | Şifre alanı ve hata detayı sızıntısını durdur | **P0** | — | ✅ [BE#4](https://github.com/bitirmesel/BackendApi/pull/4) — `pj6y` yayında; ⚠️ `8nfn` deploy etmedi (PR-12) |
 | PR-03 | 1 | BE | Yerel geliştirme veritabanı (docker-compose + şema + seed) | P0 | — | ⬜ |
 | PR-04 | 1 | FN | İstek/yanıt gövdelerini loglamayı kaldır (şifre, kişisel veri) | **P0** | — | ✅ [FN#18](https://github.com/bitirmesel/Fonem/pull/18) |
-| PR-05 | 1 | PN | Şifreyi cihazda saklama, çıkışta oturumu temizle | **P0** | — | 🔧 yapılıyor |
+| PR-05 | 1 | PN | Şifreyi cihazda saklama, çıkışta oturumu temizle | **P0** | — | 🟨 [PN#2](https://github.com/bitirmesel/advisor_panel_app/pull/2) |
 | PR-06 | 2 | BE | Görev yanıtına `therapistId`, oyun tipi, zorluk ekle | **P1** | — | ⬜ |
 | PR-07 | 2 | FN | Görev yönlendirmesi: oyun ID/tip/zorlukla; Story/Fill Gap; inbox rozeti | **P1** | PR-06 | ⬜ |
 | PR-08 | 2 | FN | Cümle oyunu varlıklarını paketle; tek geçme eşiği (`passed`); `http` bağımlılığı | **P1** | — | ⬜ |
