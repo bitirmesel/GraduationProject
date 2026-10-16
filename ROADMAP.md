@@ -62,6 +62,7 @@ flowchart TD
     P2 --> P3["Faz 3 · Kimlik ve yetki<br/>PR-13, 14, 18, 19, 15"]
     P1 -.paralel.-> P4["Faz 4 · Mühendislik<br/>PR-16, 20 … 23"]
     P3 --> P5["Faz 5 · Ürün ve KVKK<br/>PR-24 …"]
+    P2 -.paralel.-> D6["Faz 6 · UI yenileme<br/>Tasarım (D-1…D-4) → PR-40 …"]
 ```
 
 Faz 2, tez demosunda "çocuk oynar → terapist görür" akışını sorunsuz hale getirdiği için **en yüksek ürün değerine** sahiptir. Faz 1'in BE kısmı (PR-01, PR-02) ondan önce gelir, çünkü repolar herkese açık.
@@ -100,6 +101,10 @@ Faz 2, tez demosunda "çocuk oynar → terapist görür" akışını sorunsuz ha
 | PR-27 | 2 | BE | `GET /api/players` 500 hatası (NULL alanlı oyuncu kaydı) | P1 | — | ✅ [BE#7](https://github.com/bitirmesel/BackendApi/pull/7) (`pj6y`'de doğrulandı) |
 | PR-28 | 2 | PN+BE | Oynanamayan oyun/harf (Fill Gap, içeriksiz harf) görev olarak atanamasın | P1 | — | ✅ [BE#11](https://github.com/bitirmesel/BackendApi/pull/11) · [PN#6](https://github.com/bitirmesel/advisor_panel_app/pull/6) (canlıda doğrulandı) |
 | PR-29 | 1 | BE | Npgsql güvenlik açığı CVE-2024-32655 (8.0.2 → 8.0.9) | **P0** | — | ✅ [BE#10](https://github.com/bitirmesel/BackendApi/pull/10) |
+| D-1…D-4 | 6 | — | **UI tasarımı** (kod yok): referanslar → tasarım ilkeleri ve sistem → sayfa sayfa mockup (yan panel) → onay | P1 | — | ⬜ referanslar bekleniyor |
+| PR-40 | 6 | FN | Tasarım sistemi: tema, renk/tipografi token'ları, ortak bileşenler | P1 | D-4 | ⬜ |
+| PR-41+ | 6 | FN | Ekran ekran yeni UI (giriş + **giriş kodu** ekranı, harf haritası, görevler, oyun kabuğu, ödül/profil) | P1 | PR-40, PR-14 | ⬜ |
+| PR-45+ | 6 | PN | Terapist paneli UI (Fonem'den sonra) | P2 | PR-40 | ⬜ |
 | — | — | UN | ~~Unity: telaffuz DTO, oturum kaydı, LevelMap, hece oyunu, küçük düzeltmeler, token, davet ekranı~~ | — | — | 🗑️ Unity yalnızca demoydu, gözden çıkarıldı (2026-10-16) |
 
 ---
@@ -288,6 +293,23 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 
 ---
 
+## 8b. Faz 6 — UI yenileme (önce Fonem)
+
+> **Neden:** Proje startup olarak sürecek; mevcut arayüz, özellikle çocuk uygulamasında yeterli değil (ekip kararı, 2026-10-17).
+> **Yöntem:** Önce tasarım, sonra kod. Tasarım aşaması uygulama koduna dokunmaz; bu yüzden Faz 3'le **paralel** yürür.
+
+| Adım | İçerik | Çıktı |
+|---|---|---|
+| **D-1** Referanslar | Ekip beğendiği UI örneklerini paylaşır; neyin neden beğenildiği not edilir | Referans panosu |
+| **D-2** İlkeler ve tasarım sistemi | Hedef kitle: 3-8 yaş, çoğu okuma bilmiyor → büyük dokunma alanları, az metin, sesli/görsel yönlendirme, tutarlı karakter/maskot, ödül dili. Renk, tipografi, köşe, gölge, ikon, animasyon kuralları | `docs/design/ui/` + yan panelde canlı stil sayfası |
+| **D-3** Sayfa mockup'ları | Her ekran için 2-3 seçenek, yan panelde (HTML/Flutter web) tıklanabilir prototip. Sıra: giriş + giriş kodu → harf haritası → görevler → oyun kabuğu (üst bar, ilerleme, telaffuz düğmesi, sonuç) → ödül/profil | Seçilen seçenekler |
+| **D-4** Onay | Tüm ekranlar kararlaştırılır, akış baştan sona prototipte denenir | Onaylı tasarım |
+| **PR-40** | Tasarım sistemi kodda: `ThemeData`, token'lar, ortak bileşenler (düğme, kart, mikrofon, ilerleme) | Mevcut ekranlar yeni temayı alır |
+| **PR-41+** | Ekran başına bir PR. Giriş ekranı PR-14'teki **giriş kodu** akışıyla birlikte yapılır (iki kez yapmamak için) | — |
+| **PR-45+** | Terapist paneli (Fonem bitince) | — |
+
+**Sıralama notu:** Tasarım (D-1…D-4) hemen başlayabilir. Uygulama (PR-40+), PR-14'ün backend kısmından sonra başlar; çocuk giriş ekranı yeni giriş kodu akışına göre tasarlanır. PR-15b (zorlama) UI işinden bağımsızdır.
+
 ## 9. Değişiklik günlüğü
 
 | Tarih | Değişiklik |
@@ -296,6 +318,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | 2026-10-16 | ADIM 0 ekip kararıyla ertelendi. Repolar o tarihte public durumdaydı; sırlar yenilenene kadar risk açık kabul edildi. |
 | 2026-10-16 | PR akışına **CI + Claude review** adımı eklendi; PR-17 (CI) öne çekildi. PR-01 Render erişimi olmadığı için draft'a alındı. |
 | 2026-10-16 | PR-00 ve PR-17 merge edildi; PR-02 açıldı (Swagger maddesi PR-15'e taşındı). |
+| 2026-10-17 | **Faz 6 (UI yenileme) eklendi:** önce tasarım (referans → sistem → mockup → onay, kod yok, Faz 3'le paralel), sonra Fonem ekran ekran, en son panel. Giriş ekranı PR-14 giriş koduyla birlikte. PR-13 sonrası giriş testinde B36 bulundu ve düzeltildi (BE#14). |
 | 2026-10-17 | **Faz 3 kararları onaylandı** (PasswordHasher, çocuk token'ı 30 gün + kayan yenileme, terapistin ürettiği giriş kodu, Admin rolü). PR-13 (BE#13) merge edildi; migration ve backfill `pj6y`'de çalıştı. Düz metin silme ayrı adım (PR-13b). |
 | 2026-10-17 | **Fonem uçtan uca testi (web, `pj6y`):** giriş (kullanıcı yaptı), harf haritası, inbox rozeti, görev listesi, görev → doğru oyun (Üçlü Eşleştir, Gölgesini Bul), içerik yükleme ve eşleştirme çalışıyor. Telaffuz ve tamamlama test edilemedi (tarayıcı panelinde mikrofon engelli; web webm → B17). PR-28 (BE#11, PN#6) ve B23 (BE#12) merge edildi. Faz 3 tasarım taslağı: [docs/design/faz3-kimlik-ve-yetki.md](docs/design/faz3-kimlik-ve-yetki.md). Backlog B33-B35. Proje tezden sonra startup olarak sürecek. |
 | 2026-10-17 | Render erişimi olmadan PR-12 ilerletildi: iki servisin aynı DB'yi kullandığı doğrulandı, Fonem REST çağrıları `pj6y`'ye taşındı (FN#24). Telaffuz, `pj6y`'de `OPENAI_API_KEY` olmadığı için geçici olarak `8nfn`'de (B32). |
@@ -352,6 +375,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | B33 | Minimal API'ler DataAnnotations (`[Required]`, `[EmailAddress]`) kurallarını çalıştırmıyor; ör. `RegisterRequest.Email` null gelirse DB hatası (500) | B23 review | 🟡 | PR-15 (DTO + doğrulama) |
 | B34 | Fonem her oyun açılışında sunucuda oturum başlatıyor; yarıda bırakılanlar birikiyor (test hesabında **278** "devam eden" oturum) | Fonem web testi (2026-10-17) | 🟡 | Kart yok → oturumu ilk etkileşimde başlatmak ya da eskileri otomatik kapatmak |
 | B35 | Canlıda **6 görev hiç tamamlanamaz** (5 Fill Gap, 1 G harfli Üçlü Eşleştir); PR-28 yalnızca yenilerini engelliyor | Fonem testi | 🟢 | **Karar:** iptal mi (`status=CANCELLED`), silme mi, bırakmak mı? |
+| B36 | Çocuk girişi kullanıcı adında **harf duyarlıydı** (`AliD` ≠ `aliD`); canlıda **3 ayrı `test`** hesabı aynı adı taşıyor, sırasız sorgu her seferinde farklı kaydı getiriyordu | PR-13 sonrası giriş testi | 🟠 | ✅ [BE#14](https://github.com/bitirmesel/BackendApi/pull/14) (harf duyarsız + şifresi tutan kayıt). Mevcut 3 `test` kaydını yeniden adlandırma → karar |
 
 ### PR-27 · BE · `GET /api/players` 500 hatası — ✅ BE#7
 
