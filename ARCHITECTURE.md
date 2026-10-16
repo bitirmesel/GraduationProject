@@ -4,7 +4,7 @@
 > şu anki mimarisini, veri akışlarını, bilinen sorunlarını ve birlikte çalışırken uyacağımız kuralları anlatır.
 > Yeni bir işe başlamadan önce ilgili bölümü okuyun; mimariyi değiştiren her PR'da bu dosyayı da güncelleyin.
 >
-> **Son inceleme:** 2026-10-16 · **İncelenen sürümler:** `GraduationProject@94c8306`, `BackendApi@556f82c`
+> **Son inceleme:** 2026-10-16 · **İncelenen sürümler:** `Fonem@1ed3f6d`, `advisor_panel_app@6f90bbb`, `BackendApi@4b0ccc5`, `GraduationProject@873c283`
 >
 > İş planı ve PR sırası için: **[ROADMAP.md](ROADMAP.md)**
 
@@ -15,28 +15,32 @@
 1. [Ürün Özeti](#1-ürün-özeti)
 2. [Sistem Bağlamı](#2-sistem-bağlamı)
 3. [Repolar ve Teknoloji Yığını](#3-repolar-ve-teknoloji-yığını)
-4. [Unity İstemcisi (Çocuk Uygulaması)](#4-unity-i̇stemcisi-çocuk-uygulaması)
-5. [Backend API](#5-backend-api)
-6. [Uçtan Uca Akışlar](#6-uçtan-uca-akışlar)
-7. [İstemci ↔ Backend Sözleşme Durumu](#7-i̇stemci--backend-sözleşme-durumu)
-8. [Bilinen Riskler ve Teknik Borç](#8-bilinen-riskler-ve-teknik-borç)
-9. [Çalışma Kuralları](#9-çalışma-kuralları)
-10. [Önerilen Yol Haritası](#10-önerilen-yol-haritası)
-11. [Açık Sorular](#11-açık-sorular)
+4. [Fonem — Flutter Çocuk Uygulaması](#4-fonem--flutter-çocuk-uygulaması)
+5. [advisor_panel_app — Flutter Terapist Paneli](#5-advisor_panel_app--flutter-terapist-paneli)
+6. [Backend API](#6-backend-api)
+7. [Uçtan Uca Akışlar](#7-uçtan-uca-akışlar)
+8. [İstemci ↔ Backend Sözleşme Durumu](#8-i̇stemci--backend-sözleşme-durumu)
+9. [Bilinen Riskler ve Teknik Borç](#9-bilinen-riskler-ve-teknik-borç)
+10. [Çalışma Kuralları](#10-çalışma-kuralları)
+11. [Önerilen Yol Haritası](#11-önerilen-yol-haritası)
+12. [Açık Sorular ve Kararlar](#12-açık-sorular-ve-kararlar)
+13. [Ek: Unity İstemcisi (emekli)](#13-ek-unity-i̇stemcisi-emekli)
 
 ---
 
 ## 1. Ürün Özeti
 
-ParroTalk, artikülasyon/fonoloji terapisini oyunlaştıran bir sistemdir. Üç kullanıcı yüzeyi vardır:
+ParroTalk, artikülasyon/fonoloji terapisini oyunlaştıran bir sistemdir (hedef: 6 yaş üstü Türkçe konuşan çocuklar, ev + klinik kullanımı).
 
 | Aktör | Uygulama | Ne yapar? |
 |---|---|---|
-| **Çocuk (Player / Danışan)** | Unity mobil oyun (`GraduationProject`) | Giriş yapar, terapistten gelen bildirim/görevleri görür, harf seçer, hafıza ve hece oyunlarını oynar, kelime/heceyi sesli söyler ve puan alır. |
-| **Terapist** | Flutter paneli (ayrı repo, bu incelemede yok) | Danışan ekler, davet kodu üretir, görev atar, oturum geçmişini ve dashboard'u izler, geri bildirim yazar, asset yükler. |
+| **Çocuk (Player / Danışan)** | **Fonem** — Flutter mobil (`bitirmesel/Fonem`) | Giriş/kayıt (KVKK onayı), harf yolu, hece/kelime/cümle oyunları, telaffuz değerlendirmesi, terapistin görevleri, gelen kutusu, başarılar, davet koduyla terapiste bağlanma. |
+| **Terapist** | **advisor_panel_app** — Flutter (`bitirmesel/advisor_panel_app`) | Giriş, dashboard, danışan listesi, davet kodu, bağlantı isteklerini onaylama, görev atama, çocuğa mesaj, oturum geçmişi + geri bildirim, raporlar, profil. |
 | **Sistem / Admin** | Swagger + Postman | Asset setlerini JSON olarak oluşturur, lookup tablolarını düzeltir, debug listelerini okur. |
 
-**Terapi içeriği modeli:** Türkçe ünsüz harfler (B, C, Ç, D … Z) × oyun tipi (Hece / Kelime / Cümle) × zorluk (1-2-3).
+> **Karar (2026-10-16):** Çocuk istemcisi olarak **Fonem esas alınır; Unity (`GraduationProject`) emeklidir** ve yalnızca referans olarak tutulur (bkz. [§13](#13-ek-unity-i̇stemcisi-emekli)).
+
+**Terapi içeriği modeli:** 20 Türkçe ünsüz (B, C, Ç, D … Z; `letters.id` 1–20) × oyun tipi (Hece / Kelime / Cümle) × zorluk (1-2-3) → 10 oyun ([§6.4](#64-oyun-kataloğu-gamesid)).
 Her `(oyun, harf)` çifti için bir **AssetSet** (görseller, sesler, heceler) vardır.
 
 ---
@@ -45,163 +49,190 @@ Her `(oyun, harf)` çifti için bir **AssetSet** (görseller, sesler, heceler) v
 
 ```mermaid
 flowchart LR
-    subgraph Clients
-        U["Unity Çocuk Uygulaması<br/>(Android, Unity 6)"]
-        F["Flutter Terapist Paneli<br/>(ayrı repo)"]
+    subgraph Clients["İstemciler"]
+        FN["Fonem<br/>Flutter çocuk uygulaması"]
+        PN["advisor_panel_app<br/>Flutter terapist paneli"]
+        UN["Unity çocuk uygulaması<br/>(emekli)"]
     end
 
     subgraph Render["Render.com"]
-        API["BackendApi<br/>ASP.NET Core 8 (Docker)<br/>backendapi-8nfn.onrender.com"]
+        API1["backendapi-8nfn<br/>ASP.NET Core 8 (Docker)"]
+        API2["backendapi-pj6y<br/>aynı kod"]
         DB[("PostgreSQL<br/>Frankfurt")]
     end
 
     CL["Cloudinary<br/>(görsel + ses CDN)"]
-    FM["thefluent.me<br/>(telaffuz puanlama)"]
-    WH["OpenAI Whisper<br/>(hece transkripsiyonu)"]
+    FM["thefluent.me<br/>(kelime puanlama)"]
+    WH["OpenAI Whisper<br/>(transkripsiyon)"]
 
-    U -- "REST / JSON<br/>(kimlik doğrulama yok)" --> API
-    F -- "REST / JSON<br/>(JWT alınıyor ama doğrulanmıyor)" --> API
-    U -- "asset indirme" --> CL
-    API -- "EF Core / Npgsql" --> DB
-    API -- "upload" --> CL
-    API -- "kelime puanlama" --> FM
-    FM -- "kaydı URL'den okur" --> CL
-    API -- "hece transkripti" --> WH
+    FN -- "REST/JSON (token yok)" --> API1
+    UN -. "REST/JSON" .-> API1
+    PN -- "REST/JSON (JWT 2 çağrıda)" --> API2
+    FN -- "asset indirme" --> CL
+    API1 --> DB
+    API2 --> DB
+    API1 -- "upload" --> CL
+    API1 -- "check" --> FM
+    API1 -- "check-syllable" --> WH
 ```
 
 **Önemli gerçekler**
 
 - Tüm iş mantığı **tek bir monolit backend**'dedir; istemciler "ince"dir.
-- Medya (görsel/ses) **Cloudinary**'de durur; veritabanında yalnızca URL'ler (AssetSet JSON içinde) tutulur.
-- Telaffuz değerlendirmesi **iki ayrı hat** üzerinden yapılır (bkz. [§5.7](#57-telaffuz-değerlendirme-hattı)).
-- Render ücretsiz katmanı soğuk başlatma (cold start) yapar; ilk istek 30-60 sn sürebilir.
+- **Render'da aynı koddan iki servis çalışıyor:** Fonem ve Unity `backendapi-8nfn`'e, terapist paneli `backendapi-pj6y`'ye bağlı. İkisi de aynı 54 endpoint'i sunuyor, lookup verileri birebir aynı (büyük olasılıkla aynı DB). Hangisinin esas olacağı açık soru ([§12](#12-açık-sorular-ve-kararlar)). Ortam değişkeni gerektiren her değişiklik **iki servise de** uygulanmalı.
+- Medya (görsel/ses) **Cloudinary**'de durur; veritabanında yalnızca URL parçaları (AssetSet JSON içinde) tutulur.
+- Fonem'in tüm oyunları telaffuzu **Whisper** hattıyla (`check-syllable`) değerlendirir; FluentMe hattı (`check`) şu an yalnızca emekli Unity tarafından kullanılıyordu.
+- Render ücretsiz katmanı soğuk başlatma yapar; ilk istek 30-60 sn sürebilir.
 
 ---
 
 ## 3. Repolar ve Teknoloji Yığını
 
-| | **GraduationProject** (istemci) | **BackendApi** (sunucu) |
-|---|---|---|
-| Dil / Platform | C# · Unity **6000.0.52f1** · URP 2D | C# · **.NET 8** · ASP.NET Core Minimal API + 2 Controller |
-| Hedef | Android (`com.DefaultCompany.ParroTalk`) | Docker → Render (port 10000) |
-| Ana paketler | Newtonsoft.Json, TextMeshPro, Input System, uGUI | EF Core 8 + Npgsql, JwtBearer, Swashbuckle, CloudinaryDotNet, NAudio, Dapper (kullanılmıyor) |
-| Proje adı | `ParroTalk` | `DktApi` (namespace) |
-| Test | Yok | Yok |
-| CI | Yok | Yok (Render, `main`'e push ile otomatik deploy) |
+| | **Fonem** (çocuk) | **advisor_panel_app** (terapist) | **BackendApi** | **GraduationProject** (Unity, emekli) |
+|---|---|---|---|---|
+| Yerel klasör | `FlutterDemo/` | `advisor_panel_app/` | `BackendApi/` | `GraduationProject/` |
+| Dil / Platform | Dart `^3.11.4`, Flutter | Dart `^3.7.2`, Flutter 3.29 | C# · .NET 8 Minimal API + 2 Controller | C# · Unity 6000.0.52f1 |
+| Durum yönetimi | `setState` + controller/mixin | `setState` | — | `static GameContext` |
+| HTTP | `http` (sarmalayıcı `ApiClient`) — **pubspec'te doğrudan bildirilmemiş** | `http` (doğrudan çağrılar) | — | `UnityWebRequest` |
+| Ses | `record` (WAV 16 kHz mono), `audioplayers` | — | NAudio | `Microphone` + `WavEncoder` |
+| Depolama | `shared_preferences` | `shared_preferences` | PostgreSQL (EF Core 8) | `persistentDataPath` önbellek |
+| Base URL | `--dart-define=API_BASE_URL`, varsayılan `8nfn` | sabit `pj6y` (`api_config.dart`) | — | Inspector, `8nfn` |
+| App id | `com.example.flutter_demo` ⚠️ | `com.example.advisor_panel_app` ⚠️ | — | `com.DefaultCompany.ParroTalk` |
+| Test | Şablon test (bozuk) | Şablon test (bozuk) | Yok | Yok |
+| CI | Yok | Yok | ✅ GitHub Actions (build + docker) | Yok |
+
+Ekip: 3 katkıcı. Fonem'de ~95 commit (2026-04 → 2026-06), panelde ~20 commit, backend'de ~110 commit.
 
 ---
 
-## 4. Unity İstemcisi (Çocuk Uygulaması)
+## 4. Fonem — Flutter Çocuk Uygulaması
 
 ### 4.1 Klasör yapısı
 
 ```
-Assets/
-├── Scenes/              LoginScene → NotificationScene → SelectionScene → LevelMapScene → GameScene
-├── Prefabs/
-│   ├── Game/            MemoryCard_Prefab, MemoryGameModule
-│   └── UI/              LoginPanel, NotificationPanel, MapUI, LevelButton, TaskItem
-├── Scripts/
-│   ├── Managers/        APIManager, AssetLoader, PronunciationManager, MemoryGameManager,
-│   │                    UIPanelManager, GameLoader, AudioManager, TestGame
-│   ├── Games/           BaseGameManager (abstract), SyllableExerciseManager
-│   ├── Controllers/     Sahne controller'ları + kart/drag/mic bileşenleri
-│   ├── Models/          Backend DTO'ları (AssetSetDto, TaskItem, NotificationItem, …)
-│   ├── Utilities/       GameContext (global state), GameConstants, WavUtility, UnityExtensions
-│   ├── Editor/          LevelPathEditor (harita yolu editör aracı)
-│   └── (kök)            LoginManager, PronunciationApi, PronunciationDemo, WavEncoder, LevelIdentifier
-├── images/              UI görselleri
-└── Free UI Click Sound Effects Pack/, Plugins/ButtonSoundsEditor/   (3. parti)
+lib/
+├── main.dart                    hata yakalayıcılar, dikey kilit, _StartupGate (prefs'te player_id → Home, yoksa Auth)
+├── core/                        app_api_config (base URL), tema, app_error (Türkçe hata mesajları),
+│                                datetime_display (UTC), known_game_ids, letter_id_lookup (B=1…Z=20), turkish_case
+├── services/                    api_client (Bearer destekli sarmalayıcı), auth_service, session_store,
+│                                game_session_api (start/complete), fluentme_service (check + check-syllable),
+│                                kayıt okuyucular (io/web), game_audio_service
+├── features/
+│   ├── auth/, kvkk/             giriş/kayıt sekmeleri, KVKK onay ekranı
+│   ├── home/                    5 sekmeli kabuk + okunmamış rozeti
+│   ├── exercises/               harf yolu → Hece / Kelime / Cümle sekmeleri → oyun başlatma
+│   ├── games/                   asset_orchestrator, game_bootstrap_page, asset veri kaynağı/adaptör, domain modelleri
+│   ├── missions/                görevler, oturum geçmişi, görev → oyun yönlendirme (game_task_registry)
+│   ├── notifications/           gelen kutusu
+│   ├── achievements/            tamamlanan oturumlardan istatistik
+│   ├── profile/                 kişisel bilgi, davet koduyla terapiste bağlanma, yardım, bildirim ayarları, KVKK
+│   └── pronunciation/           pronunciation_flow_controller (kayıt → değerlendirme)
+├── shared/                      pronunciation_mixin + widget'lar, game_session_mixin + game_session_store (devam ettirme)
+├── games/, screens/, controllers/   oyun ekranları ve kontrolcüleri
+├── models/                      asset_set, game_asset, dto/auth_models, db/* (entity aynaları)
+└── data/mock_asset_sets.dart    asset gelmezse hece yedeği
 ```
 
-### 4.2 Sahne akışı
-
-Build Settings sırası: `LoginScene(0) → NotificationScene(1) → SelectionScene(2) → LevelMapScene(3) → GameScene(4)`.
+### 4.2 Ekran akışı
 
 ```mermaid
 flowchart TD
-    L["LoginScene<br/>LoginController"] -->|"POST /api/player/auth/login<br/>GameContext.PlayerId set"| N["NotificationScene<br/>NotificationController"]
-    N -->|"'Okudum' → bildirimleri okundu yap<br/>'Göreve Git' → ilk görevi Context'e yaz"| S["SelectionScene<br/>SelectionController + LevelIdentifier"]
-    S -->|"harf butonu → SelectedLetterId = sıra+1"| M["LevelMapScene<br/>LevelMapSceneController"]
-    M -->|"sekme (Hece/Kelime/Cümle) + zorluk (1-3)<br/>GET asset set → Context"| G["GameScene<br/>GameLoader + GameSceneController"]
-    G -->|"Geri"| S
+    S["StartupGate"] -->|"player_id yok"| A["AuthScreen<br/>giriş / kayıt → KVKK onayı"]
+    S -->|"player_id var"| H["HomeScreen (5 sekme)"]
+    A --> H
+    H --> E["Egzersizler<br/>harf yolu (B, T, K açık)"]
+    H --> M["Görevler<br/>atananlar + geçmiş + yarım kalanlar"]
+    H --> AC["Başarılar"]
+    H --> N["Bildirimler (inbox)"]
+    H --> P["Profil<br/>terapiste bağlan (davet kodu)"]
+    E -->|"sekme + oyun"| G["GameBootstrapPage<br/>asset yükle → oyun"]
+    M -->|"openGameFromTask"| G
+    N -->|"görev bildirimi"| G
+    G -->|"start → ... → complete"| API["Backend"]
 ```
 
-### 4.3 Çalışma zamanı bileşenleri
+### 4.3 Oyunlar
 
-| Bileşen | Ömür | Sorumluluk |
-|---|---|---|
-| `APIManager` | Singleton, `DontDestroyOnLoad` | Tüm REST çağrıları (`UnityWebRequest` + `async/await`). Base URL Inspector'dan. JWT alanı var ama hiç set edilmiyor. |
-| `AssetLoader` | Singleton, `DontDestroyOnLoad` (yalnızca GameScene'de bulunur) | 3 katmanlı önbellek: **RAM → disk (`persistentDataPath`) → ağ**. Sprite ve AudioClip. |
-| `SceneNavigator` | Singleton, `DontDestroyOnLoad` (LoginScene'de) | Sahne geçişleri; `IsFocusMode` sıfırlama. |
-| `PronunciationManager` | Singleton, `DontDestroyOnLoad` (GameScene'de) | Mikrofon kaydı → WAV → `POST /api/pronunciation/check` → puan döngüsü. |
-| `UIPanelManager` | Sahne içi singleton | Victory / Retry / Pronunciation panellerini isimle bulup aç/kapa. |
-| `GameContext` | `static class` | Sahneler arası **tüm global durum**: PlayerId, seçili harf/oyun/zorluk, asset URL listeleri, aktif TaskId. |
-| `AudioManager` | — | **Hiçbir sahnede yok**; `AudioManager.Instance` her zaman `null`. |
+| Sekme | Oyun | İçerik kaynağı | `games.id` |
+|---|---|---|---|
+| Hece | Hece S1/S2/S3 (`games/syllable/syllable_game_page.dart`): dinle → kaydet → Whisper puanı | `asset-sets`; yoksa yerel mock heceler | 1/2/3 |
+| Kelime | Hafıza kartları (`screens/memory_game_screen.dart`) | `gameconfig`, olmazsa `asset-sets` | 4 |
+| Kelime | Üçlü eşleştir (`screens/triple_match_screen.dart`) | 〃 | 5 |
+| Kelime | Mesleği bul (`screens/profession_match_screen.dart`) — T harfinde kapalı | 〃 | 6 |
+| Kelime | Gölgesini bul (`games/word/shadow_matcher_screen.dart`) | 〃 | 7 |
+| Cümle | "Cümle Kur" manav (`games/sentence/sentence_game_page.dart`) | **sabit kodlu** 5 meyve + 2 yerel MP4 | 8 (yalnızca görevden) |
+| Cümle | Hikâye kur (`screens/story_builder_screen.dart`) | **sabit kodlu** 3 sahne | 10 (yalnızca görevden) |
+| — | Balığı Seç, Resimden Kelime, Eksik Kelime, Sesli Oku | "Yakında" | — |
 
-### 4.4 Oyun modülü mimarisi
+- Açık harfler yalnızca **B, T, K** (`exercises_page.dart:28`); Cümle sekmesi tam da bu harflerde kilitli (`:31`) → pratikte hep kilitli.
+- Seviye kilitleri "UI testi" için devre dışı (`exercises_page.dart:350`).
 
-```mermaid
-classDiagram
-    class BaseGameManager {
-        <<abstract>>
-        +InitializeGame(letterId) Task
-        #ApplyAssetSet(AssetSetDto) Task
-        +InitializeFromContext() Task
-        #GameCompleted()
-    }
-    class MemoryGameManager {
-        gameId = 4
-        GET /api/gameconfig/4/{letterId}
-        kart eşleştir → PronunciationManager
-    }
-    class SyllableExerciseManager {
-        UI'ı runtime'da kurar
-        hece seç → dinle → kaydet → puan
-        (hiçbir sahneye/prefaba bağlı değil)
-    }
-    BaseGameManager <|-- MemoryGameManager
-    BaseGameManager <|-- SyllableExerciseManager
-    GameLoader --> BaseGameManager : GameModules[GameId] → Instantiate
-```
+### 4.4 Mimari
 
-- `GameLoader`, `GameContext.SelectedGameType` metnini oyun ID'sine çevirir (`Memory→4`, `Matching→5`, `SYLLABLE/Hece→6`) ve
-  Inspector'daki `GameModules` listesinden prefab seçer. **Şu an listede yalnızca `GameId: 4` (Hafıza) var.**
-- `GameSceneController` de aynı sahnede `CurrentGameManager.InitializeGame(...)` çağırır → iki başlatıcı birlikte çalışıyor (bkz. §8).
-- **Yeni oyun eklemek:** `BaseGameManager`'dan türet → prefab yap → `GameLoader.GameModules`'e backend'deki `games.id` ile ekle (bkz. §9.4).
+- **Katmanlar** (özellik bazlı, gevşek): Sayfa → Repository (`XRepository(ApiClient())`, DI yok) → `ApiClient`. Oyun tarafında Orchestrator → Service → RemoteDataSource + Adapter.
+- **Savunmacı parse:** Modeller hem camelCase hem snake_case anahtarları ve `data`/`items` sarmalayıcılarını deniyor.
+- **Kimlik:** Giriş `playerId`, takma ad ve toplam skoru prefs'e yazar. "Oturum açık" = prefs'te `player_id` var. Backend token dönmediği için **hiç Bearer gönderilmez**; `ApiClient` token gelirse göndermeye hazır.
+- **Oturum yaşam döngüsü:** `GameSessionMixin` → `POST /api/gamesessions/start` (görevden geldiyse `taskId`) → oyun → `POST /{id}/complete` (ortalama skor, `maxScore=100`, item bazında sonuçlar). İlerleme yerelde saklanır (`GameSessionStore`), `/progress` çağrılmaz.
 
-### 4.5 Hafıza oyunu + telaffuz akışı (şu an çalışan tek oyun)
+### 4.5 Ses ve telaffuz hattı
 
-1. `MemoryGameManager` → `GET /api/gameconfig/4/{letterId}` → `{ base_url, items:[{key,file}] }`
-2. Her `item` için `base_url + file` Cloudinary'den indirilir; `key == "background"` kart arkası olur.
-3. Kartlar ikişer kopyalanıp karıştırılır; eşleşme `sprite.name.GetHashCode()` ile kontrol edilir.
-4. Tüm çiftler bulununca `PronunciationManager.StartPronunciationSession(items)`:
-   her kelime için kart büyütülür, çocuk mikrofona **basılı tutarak** (`MicHoldHandler`) söyler,
-   WAV (`WavEncoder`, 16 kHz) backend'e gönderilir, **puan ≥ 70** olana kadar tekrar edilir.
-5. Hepsi geçilince Victory paneli açılır. **Sonuç backend'e kaydedilmez** (bkz. §7).
+1. `record` → WAV, 16 kHz, mono, geçici `.wav` dosyası (basılı tut → kaydet, bırak → değerlendir).
+2. Multipart `POST /api/pronunciation/check-syllable`: `text` (Türkçe küçük harf) + `audio_file`.
+3. Backend → Whisper → `PronunciationScoringService` → `PronunciationResultDto` (`score`, `passed`, `feedback_key`, `transcript`…). **Fonem bu snake_case DTO'yu doğru okuyor.**
+4. Geçme kararı **tutarsız:** hece oyunu `passed` (backend eşiği 70) kullanıyor; diğer oyunlar `overallPoints >= passingScore` (70 veya 80) ile kendi eşiğini uyguluyor.
+5. Web derlemesi `webm` yüklüyor; backend NAudio ile **yalnızca WAV** okuyabildiği için web'de değerlendirme 500 döner.
 
-### 4.6 Ölü / deneysel kod
+### 4.6 Ölü / sabit kodlu
 
-| Dosya | Durum |
-|---|---|
-| `LoginManager.cs`, `Assets/Login_Scene.unity` | Eski login denemesi; Build Settings'te değil. |
-| `PronunciationApi.cs`, `PronunciationDemo.cs` | Demo; base URL placeholder (`https://<render-domainin>`). `PronunciationDemo` GameScene'de duruyor. |
-| `TestGame.cs`, `AudioManager.cs` | Sahneye bağlı değil. |
-| `SyllableExerciseManager.cs`, `SyllableCard.cs` | Kod tamam ama sahneye bağlanmamış. |
-| `WavUtility.cs` vs `WavEncoder.cs` | İki ayrı WAV encoder; yalnızca `WavEncoder` kullanılıyor. |
-| `Models/User.cs`, `PronunciationResult.cs`, `PlayerTaskDto.cs` | Kullanılmıyor. |
-| `MapDragController`, `MapScrollDrag`, `ContentDrag`, `SuperSimpleDrag` | Aynı işi yapan 4 drag script'i. |
+- Ölü: `services/api_service.dart`, `FluentMeService.checkPronunciation` + FluentMe parse (~200 satır), `profile/pages/{personal_info,progress_stats,privacy_kvkk}_page.dart`, `models/{models,user_model}.dart`, `db/{app_db_context,therapist_client}.dart`, terapist tarafı davet/bağlantı metotları.
+- Sabit: harf ID eşlemesi, oyun ID'leri, açık harfler, bildirimler sayfasının **örnek veriyle açılması** (`notifications_page.dart:35`), bildirim ayarları yalnızca yerel.
 
 ---
 
-## 5. Backend API
+## 5. advisor_panel_app — Flutter Terapist Paneli
 
-### 5.1 Katmanlar
+### 5.1 Klasör yapısı
+
+```
+lib/
+├── main.dart, theme_manager.dart     MaterialApp, adlandırılmış rotalar ('/', '/home', '/register', '/forgot_password')
+├── models/                           dashboard_summary, game_session_detail (diğer her şey Map<String, dynamic>)
+├── services/                         api_config (sabit base URL), auth, dashboard, game_session, notification,
+│                                     report (diğerlerini tekrar ediyor), settings, student
+└── screens/                          login, register, forgot_password (sahte), home (5 sekme + dashboard),
+                                      students, connection_requests, student_detail, session_feedback, tasks,
+                                      settings, edit_profile, reports/*; dashboard_screen.dart (ölü)
+```
+
+### 5.2 Ekran akışı
+
+Login → Home (Dashboard · Öğrenciler · Görevler/Bildirim · Raporlar · Ayarlar)
+- Öğrenciler → Bağlantı istekleri · Davet kodu · Öğrenci detayı (görevler, oyun geçmişi, mesaj gönder, görev ata) → Oturum detayı + geri bildirim
+- Raporlar → Öğrenci seçimi → Öğrenci raporu → Oturum detayı
+- Ayarlar → Profil düzenle · Şifre değiştir · Tema · Çıkış
+
+### 5.3 Mimari
+
+- `StatefulWidget` + `setState`; servisler her ekranda `new`'leniyor; bazı ekranlar doğrudan `http` çağırıyor (`student_detail_screen.dart`).
+- Giriş `access_token`, `therapistId`, `savedName`'i SharedPreferences'a yazar. **JWT yalnızca 2 çağrıda** (dashboard, report) gönderiliyor; kimlik `therapistId` sorgu/body parametresiyle istemci tarafından bildiriliyor.
+- Base URL sabit: `backendapi-pj6y.onrender.com` ([§2](#2-sistem-bağlamı)).
+
+### 5.4 Çalışan / bozuk / sahte
+
+- **Çalışıyor:** giriş, dashboard + haftalık grafik, öğrenci listesi, davet kodu, bağlantı onay/ret, görev atama, mesaj gönderme, oturum geçmişi + geri bildirim, terapist bildirimleri, profil/şifre, raporlar.
+- **Bozuk:** **Kayıt her zaman 400** — panel `name` gönderiyor; backend `fullName`, `username`, `verifyPassword` bekliyor.
+- **Sahte / sabit:** "Şifremi unuttum" backend çağırmadan başarı gösteriyor; raporlardaki "canlı seans" kartı tamamen demo verisi; `lastActive` boşsa "3 dk önce"; haftalık grafikte gün etiketleri yanlış (backend bugünle biten 7 gün dönüyor, panel 0. indeksi "Pzt" sayıyor). Bunları düzelten birleştirilmemiş bir dal var: `origin/fix/reports-timezone-and-sessions`.
+
+---
+
+## 6. Backend API
+
+### 6.1 Katmanlar
 
 ```
 BackendApi/
 ├── Program.cs                 DI, JWT, CORS, Swagger, otomatik migration, endpoint mapping
-├── Endpoints/*.cs             Minimal API grupları (iş mantığının %90'ı burada, doğrudan DbContext ile)
+├── Endpoints/*.cs             Minimal API grupları (iş mantığının %90'ı, doğrudan DbContext ile)
 ├── Controllers/               GameConfigController, PronunciationController (MVC)
 ├── Services/                  CloudinaryService, WhisperService, PronunciationScoringService,
 │                              GameService (+ Repository/GameRepository), FluentMeService (kullanılmıyor)
@@ -209,24 +240,24 @@ BackendApi/
 ├── Models/Auth, Models/Game   İstek/yanıt modelleri
 ├── Dtos/                      DTO'lar (Game, Player, Tasks, Therapist, Pronunciation)
 ├── Migrations/                EF Core migration'ları
-├── Dockerfile                 Render deploy imajı
-└── PostmanCollection.json     Manuel test koleksiyonu
+├── .github/                   PR şablonu + CI (dotnet build, docker build)
+└── Dockerfile                 Render deploy imajı
 ```
 
 **Desen:** Pratikte "Endpoint → DbContext" (transaction script). Service/Repository katmanı yalnızca `gameconfig` için var.
-Bu, küçük ekip için hızlıdır ama iş kuralları endpoint'lere dağılmış durumdadır.
 
-### 5.2 Başlangıç (Program.cs)
+### 6.2 Başlangıç (Program.cs)
 
-1. `FLUENT_USER` env kontrol log'u (artık kullanılmıyor; değerler koda gömülü).
-2. Connection string: `ConnectionStrings:Pg` → yoksa `DATABASE_URL`.
-3. DI: `GameRepository`, `GameService`, `CloudinaryService`, `JwtHelper`, `PronunciationScoringService`, `WhisperService` (hepsi Scoped).
-4. CORS `AllowFlutter`: her origin/header/method serbest.
-5. JWT Bearer şeması kayıtlı **ama hiçbir endpoint `RequireAuthorization()` kullanmıyor.**
-6. Swagger her ortamda açık.
-7. **Uygulama açılışında `db.Database.Migrate()`** çalışır.
+1. Connection string: `ConnectionStrings:Pg` → yoksa `DATABASE_URL`.
+2. DI: `GameRepository`, `GameService`, `CloudinaryService`, `JwtHelper`, `PronunciationScoringService`, `WhisperService` (Scoped).
+3. CORS `AllowFlutter`: her origin/header/method serbest.
+4. JWT Bearer şeması kayıtlı **ama hiçbir endpoint `RequireAuthorization()` kullanmıyor.**
+5. Swagger her ortamda açık.
+6. **Açılışta `db.Database.Migrate()`** çalışır.
 
-### 5.3 Veri modeli
+> `main`'de sırlar hâlâ `appsettings.json` ve `PronunciationController.cs` içinde. Ortam değişkenine taşıyan değişiklik **PR-01**'de (Render erişimi bekliyor).
+
+### 6.3 Veri modeli
 
 ```mermaid
 erDiagram
@@ -262,38 +293,36 @@ erDiagram
 |---|---|
 | `therapists`, `players` | Şifreler **düz metin**. `players` kişisel/sağlık verisi içerir (doğum tarihi, tanı, veli telefonu, okul). |
 | `therapist_clients` | Composite PK `(therapist_id, player_id)`. N-N ilişki. |
-| `letters`, `game_types`, `difficulty_levels`, `games` | Lookup/katalog tabloları. |
+| `letters`, `game_types`, `difficulty_levels`, `games` | Lookup/katalog. `letters`: 20 ünsüz, ID 1–20. |
 | `asset_sets` | `(game_id, letter_id)` **unique**. İçerik `asset_json` (text) kolonunda serbest JSON. Zorluk ayrı kolon değil; oyun ID'sine gömülü. |
-| `tasks` | Durum: `ASSIGNED` → `COMPLETED` (oturum tamamlanınca). |
-| `game_sessions` + `game_session_items` | Oturum skoru + kelime/hece bazında detay (`item_type`: WORD/SYLLABLE/SENTENCE/PHONEME/MATCH). |
-| `feedback` | Terapistin oturuma yorumu. |
+| `tasks` | `ASSIGNED` → `COMPLETED` (oturum tamamlanınca). |
+| `game_sessions` + `game_session_items` | Oturum skoru + item bazında detay (`item_type`: WORD/SYLLABLE/SENTENCE/PHONEME/MATCH). |
+| `feedback` | Terapistin oturuma yorumu (`rating` sunucuda sabit 5). |
 | `notifications` | Terapist→çocuk (ve davet akışında çocuk→terapist) mesajları; `is_read`. |
 | `inbox_read_states` | Birleşik gelen kutusu için okundu bilgisi; `source_type`: task / feedback / notification. |
 | `invitation_codes` | 6 karakter, 48 saat geçerli. `PENDING → USED / EXPIRED / CANCELLED`. Terapist başına en fazla 10 PENDING. |
 | `connection_requests` | `PENDING → ACCEPTED / REJECTED`. Kabulde `therapist_clients`'a satır eklenir. |
 
-### 5.4 Oyun kataloğu (`games.id`)
+### 6.4 Oyun kataloğu (`games.id`)
 
-`/api/admin/fix-lookups-and-games` endpoint'inin yazdığı kanonik liste:
+| ID | Tip | Zorluk | Ad | Fonem | Panel |
+|---|---|---|---|---|---|
+| 1 | Hece | 1 | Hece S1 - 2 Harfliler | ✅ | görev atanabilir |
+| 2 | Hece | 2 | Hece S2 - 3 Harfliler | ✅ (görevden açılınca yanlışlıkla S1) | 〃 |
+| 3 | Hece | 3 | Hece S3 - 4 Harfliler | ✅ (görevden açılınca yanlışlıkla S1) | 〃 |
+| 4 | Kelime | 1 | Kelime S1 - Hafıza Kartı | ✅ | 〃 |
+| 5 | Kelime | 2 | Kelime S2 - Üçlü Eşleştir | ✅ | 〃 |
+| 6 | Kelime | 3 | Kelime S3 - Mesleği Bul | ✅ | 〃 |
+| 7 | Kelime | 3 | Kelime S3 - Gölgesini Bul | ✅ | 〃 |
+| 8 | Cümle | 1 | Cümle S1 - Cümle Kur! | ⚠️ sabit içerik, MP4 paketlenmemiş | 〃 |
+| 9 | Cümle | 2 | Cümle S2 - Fill Gap | ❌ (Cümle Kur açılıyor) | 〃 |
+| 10 | Cümle | 3 | Cümle S3 - Story | ⚠️ görevden açılınca Cümle Kur açılıyor | 〃 |
 
-| ID | Tip | Zorluk | Ad | Unity karşılığı |
-|---|---|---|---|---|
-| 1 | Hece | 1 | Hece S1 - 2 Harfliler | `SyllableExerciseManager` (bağlı değil) |
-| 2 | Hece | 2 | Hece S2 - 3 Harfliler | 〃 |
-| 3 | Hece | 3 | Hece S3 - 4 Harfliler | 〃 |
-| 4 | Kelime | 1 | Kelime S1 - Hafıza Kartı | ✅ `MemoryGameManager` |
-| 5 | Kelime | 2 | Kelime S2 - Üçlü Eşleştir | — |
-| 6 | Kelime | 3 | Kelime S3 - Mesleği Bul | — (Unity `SYLLABLE`'ı yanlışlıkla 6'ya eşliyor) |
-| 7 | Kelime | 3 | Kelime S3 - Gölgesini Bul | — |
-| 8 | Cümle | 1 | Cümle S1 - Cümle Kur! | — |
-| 9 | Cümle | 2 | Cümle S2 - Fill Gap | — |
-| 10 | Cümle | 3 | Cümle S3 - Story | — |
+> **Kural:** Oyun ID'leri Fonem (`known_game_ids.dart`, `game_task_registry.dart`), panel ve asset JSON'larında sabit kodlu. Bu tablo **tek doğru kaynak**tır; değişirse tüm tarafları birlikte güncelleyin.
 
-> **Kural:** Oyun ID'leri hem Unity `GameLoader` hem Flutter hem de asset JSON'larında sabit kodlu. Bu tablo **tek doğru kaynak**tır; değişirse her üç tarafı birlikte güncelleyin.
+### 6.5 AssetSet JSON şeması
 
-### 5.5 AssetSet JSON şeması
-
-`asset_sets.asset_json` serbest metin olduğundan şema sözleşmeyle korunur. Backend DTO'su (`Dtos/Game/GameAssetConfig.cs`):
+`asset_sets.asset_json` serbest metindir; şema sözleşmeyle korunur. Veritabanındaki gerçek biçim **snake_case**'tir (Fonem doğruladı):
 
 ```json
 {
@@ -307,101 +336,99 @@ erDiagram
 }
 ```
 
-- `GET /api/gameconfig/{gameId}/{letterId}` bu JSON'ı **olduğu gibi** döner (backend parse etmez).
-- Unity `GameAssetConfig` modeli `baseUrl` / `configId` (camelCase) bekliyor; backend örneği `base_url` (snake_case). **Veritabanındaki gerçek JSON'ların hangi biçimde olduğu doğrulanmalı** (bkz. §11).
+- Oyuna özel ek alanlar olabilir (ör. Mesleği Bul: `workplaceKey`, `workplaceFile`).
+- `GET /api/asset-sets?gameId&letterId&includeJson=true` Fonem'in ana kaynağıdır (`assetJson` alanı).
+- `GET /api/gameconfig/{gameId}/{letterId}` JSON'ı ham metin olarak döner; `gameId == 1` için **harften bağımsız sabit mock** döner. Fonem önce bunu deniyor, olmazsa `asset-sets`'e düşüyor (oyun başına çift çağrı).
 - Cloudinary klasör düzeni: `graduationProject/letters/{HARF}/{tip}/{oyun}/`, yüklenen sesler `game_audio/`, telaffuz kayıtları `pronunciation/`.
 
-### 5.6 Endpoint kataloğu
+### 6.6 Endpoint kataloğu
 
-Hiçbiri kimlik doğrulama istemez. "Tüketici" sütunu kodda görülen kullanıcıyı gösterir.
+Hiçbiri kimlik doğrulama istemez. **FN** = Fonem, **PN** = terapist paneli, **UN** = Unity (emekli).
 
 **Kimlik**
 
-| Metot | Yol | Tüketici |
-|---|---|---|
-| POST | `/api/auth/login`, `/api/auth/register` | Flutter (terapist; JWT döner) |
-| POST | `/api/player/auth/login` | Unity |
-| POST | `/api/player/auth/register` | (Unity'de metot var, kullanılmıyor) |
+| Metot | Yol | Tüketici | Not |
+|---|---|---|---|
+| POST | `/api/auth/login` | PN | JWT döner |
+| POST | `/api/auth/register` | PN | ⚠️ panelden her zaman 400 (alan uyuşmazlığı) |
+| POST | `/api/player/auth/login` | FN, UN | Token **dönmez** |
+| POST | `/api/player/auth/register` | FN | |
 
 **Danışan / Terapist**
 
-| Metot | Yol | Not |
-|---|---|---|
-| GET/POST | `/api/students?therapistId=` | Terapistin danışan listesi / yeni danışan |
-| GET | `/api/students/{id}` | ⚠️ Player entity'sini **şifre dahil** döner |
-| PATCH | `/api/students/{id}`, `/api/players/{id}` | Kısmi güncelleme |
-| GET | `/api/players`, `/api/players/{id}/therapists` | Debug / ilişki |
-| GET/PUT | `/api/therapists/{id}`, `/api/therapists/{id}/password` | ⚠️ GET şifre dahil döner |
-| GET | `/api/students/{id}/stats`, `/api/dashboard/summary` | Flutter dashboard |
+| Metot | Yol | Tüketici | Not |
+|---|---|---|---|
+| GET/POST | `/api/students?therapistId=` | PN | Liste / yeni danışan |
+| GET | `/api/students/{id}` | FN | ⚠️ şifre dahil döner → PR-02 |
+| PATCH | `/api/students/{id}`, `/api/players/{id}` | FN | Kısmi güncelleme |
+| GET | `/api/players`, `/api/players/{id}/therapists` | FN (ikincisi) | İlki debug |
+| GET/PUT | `/api/therapists/{id}`, `/api/therapists/{id}/password` | PN, FN (GET) | ⚠️ GET şifre dahil döner → PR-02 |
+| GET | `/api/dashboard/summary`, `/api/students/{id}/stats` | PN (ilki) | `stats.weeklyProgress` sabit dummy |
 
 **Davet ve bağlantı**
 
-| Metot | Yol | Not |
-|---|---|---|
-| POST/GET/DELETE | `/api/invitations` | Terapist kod üretir/listeler/iptal eder |
-| POST | `/api/invitations/redeem` | Çocuk kodu kullanır (IP başına 10/dk, in-memory). **Unity'de ekranı yok.** |
-| GET/PATCH | `/api/connection-requests`, `/{id}/accept`, `/{id}/reject` | Terapist onayı |
+| Metot | Yol | Tüketici | Not |
+|---|---|---|---|
+| POST/GET/DELETE | `/api/invitations` | PN (POST) | Kod üret / listele / iptal |
+| POST | `/api/invitations/redeem` | FN | IP başına 10/dk (in-memory) |
+| GET/PATCH | `/api/connection-requests`, `/{id}/accept`, `/{id}/reject` | PN | |
 
 **Görev, bildirim, gelen kutusu**
 
-| Metot | Yol | Tüketici |
-|---|---|---|
-| POST | `/api/tasks` | Flutter |
-| GET | `/api/therapists/{id}/tasks`, `/api/therapists/{id}/notifications` | Flutter |
-| GET | `/api/players/{id}/tasks`, `/api/players/{id}/tasks/active` | Unity (ilki) |
-| POST/GET/DELETE | `/api/notifications…` | Flutter gönderir, Unity okur |
-| POST | `/api/notifications/{id}/read` | Unity |
-| GET/POST | `/api/players/{id}/inbox`, `/inbox/unread-count`, `/inbox/{type}/{id}/read`, `/inbox/read-all` | Yeni birleşik gelen kutusu (Unity henüz kullanmıyor) |
+| Metot | Yol | Tüketici | Not |
+|---|---|---|---|
+| POST | `/api/tasks` | PN | |
+| GET | `/api/therapists/{id}/tasks` | — | |
+| GET | `/api/therapists/{id}/notifications` | PN, FN | Görevlerden üretilir; ⚠️ FN çocuğa terapistin **tüm öğrencilerinin** akışını gösterebilir |
+| GET | `/api/players/{id}/tasks` | FN, PN, UN | ⚠️ düz yanıt: `therapistId`, oyun tipi, zorluk yok |
+| GET | `/api/players/{id}/tasks/active` | — | |
+| POST/GET/DELETE | `/api/notifications…` | PN (POST), FN, UN | POST entity'yi doğrudan bağlıyor (mass assignment) |
+| POST | `/api/notifications/{id}/read` | FN, UN | ⚠️ FN bir yolda PATCH gönderiyor → 405 |
+| GET/POST | `/api/players/{id}/inbox`, `/inbox/unread-count`, `/inbox/{type}/{id}/read`, `/inbox/read-all` | FN | |
 
 **Oyun içeriği ve oturumlar**
 
-| Metot | Yol | Not |
-|---|---|---|
-| GET | `/api/lookup/letters`, `/games`, `/gametypes`, `/difficultylevels` | Katalog |
-| GET | `/api/gameconfig/{gameId}/{letterId}` | Unity hafıza oyunu. `gameId == 1` için **sabit mock JSON** döner. |
-| POST/PUT | `/api/assets/create`, `/api/assets/bulk-create`, `/api/assets/{g}/{l}/json` | Asset yönetimi |
-| GET | `/api/asset-sets`, `/api/tasks/{id}/asset-set` | Asset sorgulama |
-| POST | `/api/media/upload`, `/api/media/upload-audio` | Cloudinary upload |
-| POST | `/api/gamesessions/start`, `/{id}/progress`, `/{id}/complete` | Oturum yaşam döngüsü (complete → task `COMPLETED`) |
-| GET/POST | `/api/gamesessions/{id}`, `/{id}/feedback`, `/all`, `/api/therapists/{t}/players/{p}/game-sessions` | Geçmiş + geri bildirim |
-| POST | `/api/admin/fix-lookups-and-games` | Tek seferlik veri düzeltme |
+| Metot | Yol | Tüketici | Not |
+|---|---|---|---|
+| GET | `/api/lookup/letters`, `/games`, `/gametypes`, `/difficultylevels` | PN | |
+| GET | `/api/gameconfig/{gameId}/{letterId}` | FN, UN | `gameId == 1` sabit mock |
+| GET | `/api/asset-sets`, `/api/tasks/{id}/asset-set` | FN | |
+| POST/PUT | `/api/assets/create`, `/bulk-create`, `/{g}/{l}/json` | Admin | |
+| POST | `/api/media/upload`, `/upload-audio` | Admin | |
+| POST | `/api/gamesessions/start`, `/{id}/complete` | FN | complete → görev `COMPLETED` |
+| POST | `/api/gamesessions/{id}/progress` | — | FN ilerlemeyi yerelde tutuyor |
+| GET/POST | `/api/gamesessions/{id}`, `/{id}/feedback`, `/all`, `/api/therapists/{t}/players/{p}/game-sessions` | PN, FN | |
+| POST | `/api/admin/fix-lookups-and-games` | Admin | Tek seferlik |
 
 **Telaffuz**
 
-| Metot | Yol | Motor |
-|---|---|---|
-| POST | `/api/pronunciation/check` (form: `text`, `audio_file`) | FluentMe |
-| POST | `/api/pronunciation/check-syllable` (form: `text`, `audio_file`) | OpenAI Whisper |
+| Metot | Yol | Motor | Tüketici |
+|---|---|---|---|
+| POST | `/api/pronunciation/check` (`text`, `audio_file`) | FluentMe | UN (FN'de ölü kod) |
+| POST | `/api/pronunciation/check-syllable` (`text`, `audio_file`) | Whisper | **FN — tüm oyunlar** |
 
-### 5.7 Telaffuz değerlendirme hattı
+### 6.7 Telaffuz değerlendirme hattı
 
 ```mermaid
 sequenceDiagram
-    participant U as Unity
+    participant FN as Fonem
     participant API as BackendApi
-    participant CL as Cloudinary
-    participant FM as FluentMe
     participant WH as Whisper
+    participant FM as FluentMe
+    participant CL as Cloudinary
 
-    Note over U,API: Kelime hattı — /api/pronunciation/check
-    U->>API: multipart(text, audio_file WAV)
-    API->>FM: login (token 50 dk önbellekte)
-    API->>FM: POST /post (hedef metin, dil=76 Türkçe)
-    API->>API: NAudio → 16 kHz mono PCM16
-    API->>CL: WAV upload (raw)
-    API->>API: 1 sn bekle
-    API->>FM: POST /score/{postId} (audio URL)
-    FM-->>API: [ ..., {overall_result_data:[{overall_points, user_recording_transcript}]} ]
-    API->>API: PronunciationScoringService.Evaluate(target, transcript, apiScore)
-    API-->>U: PronunciationResultDto {score, passed, feedback_key, transcript, timing…}
-
-    Note over U,API: Hece hattı — /api/pronunciation/check-syllable
-    U->>API: multipart(text, audio_file)
-    API->>API: tr-TR küçük harf + 16 kHz normalize
+    Note over FN,API: Ana hat — /api/pronunciation/check-syllable
+    FN->>API: multipart(text, audio_file WAV 16kHz)
+    API->>API: tr-TR küçük harf + NAudio 16 kHz mono normalize
     API->>WH: whisper-1, language=tr, temperature=0, prompt="ka, kaa, kah"
     WH-->>API: {text}
-    API->>API: Evaluate(target, transcript, 0)
-    API-->>U: PronunciationResultDto
+    API->>API: PronunciationScoringService.Evaluate(target, transcript, 0)
+    API-->>FN: PronunciationResultDto {score, passed, feedback_key, transcript…}
+
+    Note over API,FM: Eski hat — /api/pronunciation/check (Unity)
+    API->>FM: login → post → (WAV → Cloudinary) → score
+    FM-->>API: overall_points + transcript
+    API->>API: Evaluate(target, transcript, apiScore)
 ```
 
 **Puanlama kuralları** (`PronunciationScoringService`, Türkçe karakterler ASCII'ye indirgenerek karşılaştırılır):
@@ -413,204 +440,234 @@ sequenceDiagram
 | Uzatma varyantı (`aah` ~ `ah`) | 85 | `length_variant` |
 | Biri diğerini içeriyor | 70 | `contains` |
 | Hedef ≤ 3 karakter ve eşleşmiyor | 0 | `mismatch_short` |
-| Diğer (uzun kelime) | FluentMe skoru | `api_score` |
+| Diğer (uzun kelime) | API skoru (Whisper hattında **0**) | `api_score` |
 
-Geçme eşiği: **70** (backend `passed`, Unity de sabit 70 kullanıyor).
+Geçme eşiği backend'de **70**. Whisper hattında uzun ve tam eşleşmeyen kelimeler `api_score = 0` aldığı için **0 puan** alır.
 
-> ⚠️ Normalize işlemi `ı→i`, `ş→s` vb. yapar; bu nedenle **"kız" ile "kiz"** veya **"şapka" ile "sapka"** aynı sayılır.
-> Konuşma terapisi bağlamında (ör. /s/–/ş/ ayrımı hedefleniyorsa) bu bilinçli bir karar olmalı.
+> ⚠️ Normalize işlemi `ı→i`, `ş→s` vb. yapar: **"kız" = "kiz"**, **"şapka" = "sapka"**. Terapide /s/–/ş/ ayrımı hedefleniyorsa bu bilinçli bir karar olmalı ([§12](#12-açık-sorular-ve-kararlar)).
 
-### 5.8 Veritabanı migration'ları
+### 6.8 Migration'lar
 
-- Şema ilk olarak EF dışında oluşturulmuş; `Baseline` migration'ı boş (yalnızca başlangıç noktası).
+- Şema ilk olarak EF dışında oluşturulmuş; `Baseline` migration'ı boş. Temiz bir DB'de tablolar oluşmaz (PR-03 çözecek).
 - Sonraki migration'lar: `RefactorGameSessionAndAddItems`, `FixGameSessionItemsTable`, `AddInboxReadStates`, `AddInvitationAndConnectionRequest`.
-- **Migration'lar uygulama açılışında otomatik çalışır** → hatalı bir migration production'ı ayağa kalkamaz hale getirir.
-
-Yeni migration:
+- **Migration'lar açılışta otomatik çalışır** → hatalı bir migration production'ı ayağa kaldırmaz.
 
 ```bash
 dotnet ef migrations add <Isim> --project DktApi.csproj
 ```
 
-### 5.9 Dağıtım ve yapılandırma
+### 6.9 Dağıtım ve yapılandırma
 
-- `Dockerfile` çok aşamalı (sdk:8.0 → aspnet:8.0), `ASPNETCORE_URLS=http://+:10000`.
-- Render, repoya push ile yeniden deploy eder.
+- `Dockerfile` çok aşamalı (sdk:8.0 → aspnet:8.0), `ASPNETCORE_URLS=http://+:10000`. ⚠️ `appsettings.json` içindeki Kestrel 5194 tanımı bunu eziyor; Render portu otomatik bulduğu için çalışıyor.
+- Render, `main`'e push ile **iki servisi** de yeniden deploy ediyor (varsayım; Render erişimiyle doğrulanacak).
+- CI: her PR'da `dotnet build` + `docker build`.
 
-| Ortam değişkeni | Kullanan | Not |
+| Ortam değişkeni | Kullanan | Durum |
 |---|---|---|
-| `ConnectionStrings__Pg` veya `DATABASE_URL` | Program.cs | ⚠️ Şu an `appsettings*.json` içinde açık yazılı |
-| `Jwt__Key`, `Jwt__Issuer`, `Jwt__Audience` | JwtHelper | ⚠️ Key `appsettings.json`'da varsayılan değerde |
-| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | CloudinaryService | Env'den okunuyor ✅ |
-| `OPENAI_API_KEY` | WhisperService | Env'den okunuyor ✅ |
-| `FLUENT_USER` (+ şifre, API key) | PronunciationController | ⚠️ Kod içinde sabit; env okunmuyor |
-
-Yerel çalıştırma: `dotnet run` → `http://localhost:5194/swagger`
-(**Dikkat:** yerel geliştirme şu an production veritabanına bağlanıyor.)
+| `ConnectionStrings__Pg` / `DATABASE_URL` | Program.cs | ⚠️ `main`'de `appsettings*.json` içinde açık → PR-01 |
+| `Jwt__Key` | JwtHelper | ⚠️ `main`'de varsayılan değer → PR-01 |
+| `CLOUDINARY_CLOUD_NAME`, `_API_KEY`, `_API_SECRET` | CloudinaryService | ✅ env |
+| `OPENAI_API_KEY` | WhisperService | ✅ env |
+| `FluentMe__User/Password/ApiKey` | PronunciationController | ⚠️ `main`'de kod içinde → PR-01 |
 
 ---
 
-## 6. Uçtan Uca Akışlar
+## 7. Uçtan Uca Akışlar
 
-### 6.1 Terapist ↔ çocuk bağlantısı
+### 7.1 Terapist ↔ çocuk bağlantısı (✅ uçtan uca çalışıyor)
 
 ```mermaid
 sequenceDiagram
-    participant T as Terapist (Flutter)
+    participant T as Terapist (panel)
     participant API as Backend
-    participant C as Çocuk
+    participant C as Çocuk (Fonem)
     T->>API: POST /api/invitations {therapistId}
     API-->>T: code (6 hane, 48 saat)
-    T-->>C: kodu sözlü/yazılı iletir
+    T-->>C: kodu iletir
     C->>API: POST /api/invitations/redeem {code, playerId}
     API->>API: connection_request PENDING, kod USED, terapiste notification
     T->>API: PATCH /api/connection-requests/{id}/accept
-    API->>API: therapist_clients satırı + çocuğa notification
+    API->>API: therapist_clients + çocuğa notification
 ```
 
-Alternatif yol: Terapist `POST /api/students` ile çocuğu doğrudan oluşturur (ilişki otomatik eklenir).
+Alternatif yol: Terapist `POST /api/students` ile çocuğu doğrudan oluşturur.
 
-### 6.2 Görev → oyun → sonuç (hedeflenen akış)
+### 7.2 Görev → oyun → sonuç (✅ çalışıyor, ⚠️ yönlendirme hataları var)
 
 ```mermaid
 sequenceDiagram
-    participant T as Terapist
+    participant T as Terapist (panel)
     participant API as Backend
-    participant U as Unity
+    participant C as Fonem
     T->>API: POST /api/tasks {player, game, letter, note}
-    U->>API: GET /api/players/{id}/tasks
-    U->>U: "Göreve Git" → GameContext.CurrentTaskId
-    U->>API: GET /api/gameconfig/{game}/{letter}
-    U->>API: POST /api/gamesessions/start  ❌ (Unity çağırmıyor)
-    U->>API: POST /api/pronunciation/check (kelime başına)
-    U->>API: POST /api/gamesessions/{id}/complete {score, items}  ❌ (Unity çağırmıyor)
+    C->>API: GET /api/players/{id}/tasks
+    C->>C: game_task_registry → oyun seç (ad eşleştirmesiyle)
+    C->>API: GET /api/asset-sets?gameId&letterId
+    C->>API: POST /api/gamesessions/start {taskId}
+    loop her kart / kelime
+        C->>API: POST /api/pronunciation/check-syllable
+    end
+    C->>API: POST /api/gamesessions/{id}/complete {score, items}
     API->>API: task → COMPLETED
-    T->>API: GET .../game-sessions, POST /feedback
+    T->>API: GET .../game-sessions → POST /feedback
+    C->>API: GET /api/players/{id}/inbox (geri bildirim görünür)
 ```
 
-❌ işaretli adımlar backend'de hazır ama istemcide eksik → **terapist paneli şu an Unity'den gelen hiçbir oyun sonucunu göremez.**
+Görev yanıtında oyun tipi ve zorluk olmadığı için Fonem oyunu adla eşleştiriyor: Hece S2/S3 görevleri **S1** açıyor, "Cümle S3 - Story" görevi **Cümle Kur**'u açıyor (bkz. [§9](#9-bilinen-riskler-ve-teknik-borç)).
 
 ---
 
-## 7. İstemci ↔ Backend Sözleşme Durumu
+## 8. İstemci ↔ Backend Sözleşme Durumu
 
-| Unity çağrısı | Backend'de | Etki |
-|---|---|---|
-| `POST /api/player/auth/login` | ✅ var | — |
-| `GET /api/players/{id}/tasks` | ✅ var | — |
-| `GET /api/notifications/player/{id}`, `POST /api/notifications/{id}/read` | ✅ var | — |
-| `GET /api/gameconfig/{g}/{l}` | ✅ var | Alan adları (`base_url` vs `baseUrl`) doğrulanmalı |
-| `GET /api/assets/sets?letterId&gameType&difficulty` | ❌ **yok** | 404 → Unity sessizce **mock** veri üretir; hece/kelime sekmesi gerçek veri almaz |
-| `GET /api/notifications/unread-count/{id}` | ❌ **yok** (karşılığı `/api/players/{id}/inbox/unread-count`) | Hep 0 → kod test için 1'e zorluyor |
-| `POST /api/gamesessions/finish` | ❌ **yok** (karşılığı `start` + `complete`) | Metot zaten çağrılmıyor; skor kaydı yok |
-| `POST /api/player/auth/register` | ⚠️ alan uyuşmazlığı | Unity `FullName` gönderir, backend `Name` + `BirthDate` bekler |
-| `POST /api/pronunciation/check` | ⚠️ **yanıt formatı değişmiş** | Backend artık `PronunciationResultDto` **nesnesi** dönüyor; Unity FluentMe'nin ham **dizisini** (`responseList[1].OverallResult[0].overall_points`) parse ediyor → parse hatası → çocuk her denemede "Tekrar dene" görür |
-| `POST /api/pronunciation/check-syllable` | ✅ var | Unity kullanmıyor (hece oyunu `/check`'e gidiyor) |
-
-> **Not:** Bu tablo statik kod incelemesine dayanır. Render'daki canlı sürüm farklıysa önce `/swagger` ile doğrulayın.
+| İstemci | Çağrı | Durum | Etki |
+|---|---|---|---|
+| PN | `POST /api/auth/register` | ❌ alan uyuşmazlığı (`name` ↔ `fullName`; `username`, `verifyPassword` yok) | Panelden kayıt imkânsız |
+| PN | `GET /api/students` | ⚠️ `age`, `registeredAt` beklenir, dönmez | Boş gösterilir |
+| PN | `GET /api/therapists/{id}` | ⚠️ `title` beklenir, yok | "Terapist" varsayılanı |
+| PN | `GET /api/games`, `/api/letters` | ❌ yok (doğrusu `/api/lookup/...`) | Ölü kodda, etkisi yok |
+| PN | Base URL | ⚠️ `pj6y` (diğerleri `8nfn`) | Karar bekliyor |
+| FN | `GET /api/players/{id}/tasks` | ⚠️ `therapistId`, oyun tipi, zorluk yok | Yanlış seviye/oyun; okunmamış rozeti hiç yüklenmiyor |
+| FN | `PATCH /api/notifications/{id}/read` | ❌ backend POST | 405 (yalnızca yedek yolda) |
+| FN | `GET /api/players/{id}` | ❌ yok | Her profil açılışında boşa 404/405, sonra `/students/{id}` |
+| FN | `GET /api/gameconfig/{g}/{l}` | ⚠️ ham metin; Fonem Map bekliyor | Asset-sets'e düşüyor (çift çağrı) |
+| FN | `check-syllable` web (`webm`) | ❌ backend yalnızca WAV | Web'de değerlendirme 500 |
+| FN | `check-syllable` mobil | ✅ | — |
+| FN | `gamesessions/start` + `complete`, inbox, redeem, asset-sets | ✅ | — |
+| UN (emekli) | `/api/assets/sets`, `/notifications/unread-count`, `/gamesessions/finish`; `check` yanıt biçimi | ❌ | Unity emekli; düzeltilmeyecek |
 
 ---
 
-## 8. Bilinen Riskler ve Teknik Borç
+## 9. Bilinen Riskler ve Teknik Borç
 
 ### P0 — Güvenlik ve gizlilik (çocuk sağlık verisi işleniyor)
 
-1. **Sırlar git geçmişinde.** Production PostgreSQL şifresi (`appsettings.json`, `appsettings.Development.json`),
-   FluentMe kullanıcı adı/şifre/API anahtarı (`PronunciationController.cs`) ve JWT anahtarı repoda açık.
-   **Her iki repo da public** olduğundan bu bilgiler herkese açıktır.
-   → Hepsi **yenilenmeli (rotate)** ve env değişkenine taşınmalı (ROADMAP: ADIM 0 + PR-01).
-2. **Kimlik doğrulama yok.** JWT üretiliyor ama hiçbir endpoint korunmuyor. Herkes `GET /api/players`,
-   `GET /api/students/{id}` ile tüm çocukların ad, e-posta, tanı, veli telefonu ve **şifresini** okuyabilir; şifre değiştirebilir.
-3. **Şifreler düz metin** (therapist + player).
-4. **Entity'ler doğrudan dönülüyor** (`Results.Ok(player)`, `Results.Ok(therapist)`) → şifre sızıntısı.
-5. Hata yanıtlarında stack trace dönülüyor (`GET /api/students`), Swagger production'da açık, CORS tamamen açık.
-6. Yerel geliştirme production DB'ye yazıyor.
-7. KVKK: çocuk ses kayıtları Cloudinary `pronunciation/` klasöründe süresiz ve herkese açık URL ile tutuluyor; FluentMe/OpenAI'ye gönderiliyor. Aydınlatma metni/veli onayı ve saklama süresi tanımlanmalı.
+1. **Sırlar git geçmişinde ve repolar public.** Production PostgreSQL şifresi, FluentMe bilgileri ve JWT anahtarı herkese açık. → PR-01 (koddan çıkarma) + ADIM 0 (yenileme, ertelendi).
+2. **Kimlik doğrulama yok.** Hiçbir endpoint korunmuyor; istemciler kimliği `therapistId`/`playerId` parametresiyle kendileri bildiriyor (IDOR).
+3. **Şifreler düz metin** (therapist + player). Tez raporu BCrypt ve RBAC olduğunu söylüyor; gerçekte yok. Panelin gizlilik metni de aynı yanlış iddiayı içeriyor.
+4. **Şifre içeren yanıtlar** (`/students/{id}`, `/therapists/{id}`) → PR-02.
+5. **Hata yanıtlarında iç detay** (stack trace, dış servis yanıtları) → PR-02.
+6. **Fonem `ApiClient` tüm istek/yanıt gövdelerini `debugPrint` ediyor** (giriş şifresi dahil). Bu loglar release derlemesinde de çalışıyor.
+7. **Panel "beni hatırla" seçeneğinde şifreyi düz metin SharedPreferences'ta saklıyor;** JWT de düz metin. Çıkış oturumu temizlemiyor.
+8. Swagger prod'da açık, CORS tamamen açık.
+9. KVKK: çocuk ses kayıtları Cloudinary `pronunciation/` klasöründe süresiz ve herkese açık URL ile tutuluyor; kayıtlar OpenAI'ye (ve eski hatta FluentMe'ye) gönderiliyor. Fonem'deki KVKK onayı yalnızca cihazda saklanıyor.
+10. Android release derlemeleri debug anahtarıyla imzalanıyor; app id'ler `com.example.*`.
 
 ### P1 — İşlevsel kırıklar
 
-1. Telaffuz yanıt formatı uyuşmazlığı (§7) → hafıza oyunu sonrası telaffuz aşaması geçilemiyor olabilir.
-2. Oyun sonuçları backend'e kaydedilmiyor → dashboard / görev tamamlama Unity için çalışmıyor.
-3. `/api/assets/sets` yok → LevelMap her zaman mock veri.
-4. `SyllableExerciseManager` sahneye bağlı değil; `GameLoader` `SYLLABLE → 6` eşlemesi yanlış (backend'de hece = 1-3).
-5. `PronunciationManager.CreatePronunciationCard` görsel URL'ini `APIManager.GetBaseUrl() + file` ile kuruyor (backend adresi) — `config.BaseUrl` (Cloudinary) olmalı.
-6. GameScene'de hem `GameLoader` hem `GameSceneController` oyunu başlatıyor → çift init / çift API çağrısı riski.
-7. Harf ID'si Unity'de **sabit dizideki sıra** ile üretiliyor (`B=1, C=2 …`) → `letters` tablosundaki ID'lerle eşleştiği doğrulanmalı.
-8. Unity'de davet kodu kullanma (redeem) ve kayıt ekranı yok.
-9. `AudioManager` sahnede yok → tüm ses efektleri sessiz.
-10. `PronunciationManager` sabit kelime düzeltmeleri (`kopek→köpek` vb.) içeriyor → asset JSON'a `display_text` alanı eklenmeli.
+1. Panelden **terapist kaydı imkânsız** (400).
+2. Fonem görev yönlendirmesi: Hece S2/S3 → S1, Story → Cümle Kur, Fill Gap yok; okunmamış rozeti çalışmıyor (`therapistId = 0`).
+3. Fonem **Cümle Kur MP4'leri `pubspec.yaml`'da yok** → oyun açılmıyor.
+4. Cümle sekmesi pratikte hep kilitli; yalnızca B, T, K açık.
+5. Geçme eşiği tutarsız (hece: backend `passed`; diğer oyunlar: istemcide 70/80).
+6. Whisper hattında uzun ve tam eşleşmeyen kelimeler 0 puan alıyor (`api_score` = 0).
+7. Panel haftalık grafik gün etiketleri yanlış; düzelten dal birleştirilmemiş.
+8. Panel raporlarında sabit demo kartı ("canlı seans"); "şifremi unuttum" sahte başarı gösteriyor.
+9. İki Render servisi → ortam ve deploy tutarsızlığı riski.
+10. Fonem `http` paketi `pubspec.yaml`'da doğrudan bildirilmemiş (yalnızca dolaylı bağımlılık) → derleme riski.
 
 ### P2 — Kod kalitesi
 
-- Test yok, CI yok, ortam ayrımı (dev/staging/prod) yok.
-- `Console.WriteLine` ile loglama → `ILogger` + yapılandırılmış log.
-- Endpoint'lerde tekrarlanan doğrulama/eşleme kodu; `Dtos.cs` ve `Dtos/` paralel; Unity `GraduationProject.Models` namespace'i backend `Dtos/Game/GameAssetConfig.cs`'e kopyalanmış.
-- `DateTime.Now` / `DateTime.UtcNow` karışık (ör. `Notification.CreatedAt` yerel saat).
-- In-memory rate limit tek instance'ta çalışır; `Random` ile davet kodu (kriptografik değil).
-- Unity: `async void` yaygın (hatalar yutulur), `GameObject.Find` / isimle arama, `GameContext` global mutable state, base URL iki yerde sabit kodlu, `Debug.Log` yoğun, aynı işi yapan çoklu script.
-- `DktApi.csproj` içinde yorum satırına alınmış eski proje tanımı; kullanılmayan `Dapper`, `FluentMeService`.
+- Üç istemcide de test yok (Flutter şablon testleri bozuk); Flutter repolarında CI yok.
+- Panel: servisler birbirini tekrar ediyor (`ReportService` ↔ diğerleri), `therapistId` okuma kodu ~12 kez kopyalanmış, N+1 istek (öğrenci seçimi), `mounted` kontrolsüz `setState`, dispose edilmeyen controller'lar, ~55 deprecated API kullanımı, `pubspec.lock` gitignore'da.
+- Fonem: hece oyunu kayıt ve oturum mantığını ortak mixin'den kopyalamış; iki ayrı session store; çok sayıda ölü dosya.
+- Backend: `Console.WriteLine` loglama, `DateTime.Now`/`UtcNow` karışık, endpoint'lerde tekrarlanan doğrulama, kullanılmayan `Dapper`/`FluentMeService`.
 
 ---
 
-## 9. Çalışma Kuralları
+## 10. Çalışma Kuralları
 
-### 9.1 Branch ve commit
+### 10.1 Branch, commit ve PR
 
 > PR yaşam döngüsü, roller ve "Bitti" tanımı: [ROADMAP.md §1](ROADMAP.md#1-nasıl-çalışacağız).
 
-- `main` = Render'a otomatik deploy edilen kod. Doğrudan `main`'e push yok; her iş `feature/PR-XX-<kısa-ad>` veya `fix/PR-XX-<kısa-ad>` dalında, PR ile.
-- Commit mesajı: `<alan>: <ne yapıldı>` (ör. `backend: add RequireAuthorization to player endpoints`, `unity: parse PronunciationResultDto`). `.` gibi boş mesajlar yok.
-- Unity sahne/prefab dosyaları (`.unity`, `.prefab`) birleştirmede çakışır: aynı sahne üzerinde aynı anda iki kişi çalışmasın.
+- `main`'e doğrudan push yok. Her iş `feature/PR-XX-<kısa-ad>` veya `fix/PR-XX-<kısa-ad>` dalında, PR ile.
+- Commit mesajı: `[PR-XX] <alan>: <ne yapıldı>`. `.` gibi boş mesajlar yok.
+- Backend PR'ları CI'dan (build + docker) yeşil geçmeden merge edilmez. Her PR Claude code review'dan geçer.
 
-### 9.2 API değişikliği protokolü
+### 10.2 API değişikliği protokolü
 
-1. Önce bu dokümandaki §5.6 / §7 tablolarını güncelle.
-2. Yanıt şeklini değiştiriyorsan **eski istemcileri kırma**: yeni alan ekle veya `/v2` yolu aç.
-3. Unity `Models/` ve Flutter modelini aynı PR serisinde güncelle.
-4. Swagger'da elle test et, Postman koleksiyonunu güncelle.
+1. Önce bu dokümandaki §6.6 / §8 tablolarını güncelle.
+2. Yanıt şeklini değiştiriyorsan **istemcileri kırma**: yalnızca yeni alan ekle veya yeni yol aç; eski alanı istemciler geçtikten sonra kaldır.
+3. Etkilenen istemcileri (Fonem, panel) aynı PR serisinde güncelle ve PR'larda birbirine link ver.
+4. Ortam değişkeni gerekiyorsa **iki Render servisine** de ekle.
 
-### 9.3 Sır yönetimi
+### 10.3 Sır yönetimi
 
-- Hiçbir şifre, anahtar veya connection string repoya girmez. Yerelde `dotnet user-secrets`, Render'da Environment.
-- `appsettings.json` yalnızca sır olmayan varsayılanları içerir.
+- Hiçbir şifre, anahtar veya connection string repoya girmez. Backend yerelde `dotnet user-secrets`, Render'da Environment; Flutter'da `--dart-define`.
+- İstemci loglarına (debugPrint, print) istek/yanıt gövdesi yazılmaz.
 
-### 9.4 Yeni oyun modülü ekleme (Unity)
+### 10.4 Yeni oyun ekleme (Fonem)
 
-1. Backend'de `games` tablosunda ID'yi belirle (§5.4) ve her harf için `asset_sets` JSON'unu oluştur (`POST /api/assets/create`).
-2. Unity'de `BaseGameManager`'dan türeyen sınıf yaz; `InitializeGame(letterId)` içinde `GET /api/gameconfig/{gameId}/{letterId}` kullan.
-3. Prefab oluştur, `GameScene > GameLoader.GameModules` listesine `GameId` ile ekle; `ParseGameType` eşlemesini güncelle.
-4. Oyun başında `gamesessions/start`, bitişte `gamesessions/{id}/complete` çağır (item bazında skorlarla).
-5. Bu dokümana ekle.
+1. Backend'de `games` ID'sini belirle ([§6.4](#64-oyun-kataloğu-gamesid)) ve her harf için `asset_sets` JSON'unu oluştur (`POST /api/assets/create`).
+2. Fonem'de ekran + controller yaz; içeriği `asset-sets`'ten al.
+3. `known_game_ids.dart` ve `game_task_registry.dart`'a ekle (görevden açılabilsin).
+4. Oturum için `GameSessionMixin`'i, telaffuz için `PronunciationFlowController`'ı kullan (kopyalama yapma).
+5. Bu dokümanı güncelle.
 
-### 9.5 Yeni endpoint ekleme (Backend)
+### 10.5 Yeni endpoint ekleme (Backend)
 
 1. İlgili `Endpoints/<Alan>Endpoints.cs` dosyasına ekle (yeni alan ise yeni dosya + `Program.cs`'te `Map…`).
 2. İstek/yanıt için `Dtos/<Alan>/` altında DTO kullan; **entity döndürme**.
 3. `.WithTags(...)` ve `.WithName(...)` ver; kimlik gerekiyorsa `.RequireAuthorization()`.
-4. Şema değiştiyse migration ekle ve yerelde **production dışı** bir DB'de dene.
+4. Hata durumunda `ErrorLog.Log` ile logla, istemciye yalnızca hata kodu dön.
+5. Şema değiştiyse migration ekle ve **production dışı** bir DB'de dene.
 
 ---
 
-## 10. Önerilen Yol Haritası
+## 11. Önerilen Yol Haritası
 
-> Özet tablodur; PR bazında adımlar, bağımlılıklar ve kabul kriterleri [ROADMAP.md](ROADMAP.md)'dedir.
+> PR bazında adımlar, bağımlılıklar ve kabul kriterleri [ROADMAP.md](ROADMAP.md)'dedir.
 
-| Faz | Hedef | İçerik |
+| Faz | Hedef | Özet |
 |---|---|---|
-| **0 — Güvenli zemin** (hemen) | Sızıntıyı durdur | Sırları rotate et + env'e taşı; ayrı dev veritabanı; entity yerine DTO dön; Swagger'ı prod'da kapat. |
-| **1 — Uçtan uca çalışan akış** | Çocuğun oynadığı terapiste ulaşsın | Unity `PronunciationResultDto`'yu parse etsin; `gamesessions/start` + `complete` entegrasyonu; `/api/assets/sets` yerine doğru endpoint; hece oyununu `GameLoader`'a bağla ve `check-syllable` kullan; unread-count'u inbox endpoint'ine taşı. |
-| **2 — Kimlik ve yetki** | Herkes yalnızca kendi verisini görsün | Şifre hash (BCrypt/ASP.NET `PasswordHasher`); oyuncu için de JWT; endpoint'lere rol bazlı `RequireAuthorization`; terapist yalnızca `therapist_clients`'taki çocukları görsün. |
-| **3 — Mühendislik altyapısı** | Güvenle hızlanmak | GitHub Actions (backend build + test, Unity build); `PronunciationScoringService` için birim testleri; `ILogger`; ortam ayrımı (staging). |
-| **4 — Ürün** | Terapötik değer | Kelime S2-S3 ve Cümle oyunları; çocuk ilerleme haritası backend'den; veli onay akışı; ses kayıtlarının saklama politikası. |
+| **1 — Güvenlik** | Sızıntıyı durdur | Sırları env'e taşı, şifre ve hata detayı dönmesin, yerel dev DB, istemci loglarında şifre olmasın, panel şifre saklamasın. |
+| **2 — Uçtan uca akış** | Tez demosu sorunsuz çalışsın | Görev yanıtına oyun tipi/zorluk, Fonem görev yönlendirmesi, Cümle oyunu varlıkları, tek geçme eşiği, panel kaydı, panel grafik/rapor düzeltmeleri. |
+| **3 — Kimlik ve yetki** | Herkes yalnızca kendi verisini görsün | Şifre hash, oyuncu JWT'si, istemciler token göndersin, yetkilendirme + sahiplik. |
+| **4 — Mühendislik altyapısı** | Güvenle hızlanmak | Backend testleri, Flutter CI + gerçek testler, loglama, ölü kod temizliği, app id/imzalama. |
+| **5 — Ürün ve KVKK** | Terapötik değer | Ses kaydı saklama politikası, KVKK onayının backend'de tutulması, yeni oyunlar, tez raporunun güncellenmesi. |
 
 ---
 
-## 11. Açık Sorular
+## 12. Açık Sorular ve Kararlar
 
-1. Flutter terapist panelinin reposu nerede? Bu dokümana eklenmeli mi?
-2. Veritabanındaki gerçek `asset_json` kayıtları `base_url` mı `baseUrl` mı kullanıyor?
-3. `letters` tablosundaki ID'ler Unity'deki `B=1 … Z=20` sırasıyla örtüşüyor mu (sesli harfler de var mı)?
-4. Render'daki canlı backend bu repodaki `main` ile aynı mı? (Unity'nin çağırdığı `/api/assets/sets` canlıda var mı?)
-5. Kelime değerlendirmesi uzun vadede FluentMe'de mi kalacak, yoksa Whisper hattında mı birleşecek?
-6. `ş/s`, `ç/c`, `ı/i` ayrımı terapötik olarak puanlamada önemli mi?
-7. Çocuk kendi hesabını mı açacak, yoksa hesapları yalnızca terapist mi oluşturacak?
+**Kararlar**
+
+| Tarih | Karar |
+|---|---|
+| 2026-10-16 | Çocuk istemcisi **Fonem**; Unity emekli. |
+| 2026-10-16 | ADIM 0 (sır yenileme) ertelendi; PR-01 Render erişimi bekliyor. |
+
+**Cevaplanan sorular (2026-10-16)**
+
+- Flutter terapist paneli → `bitirmesel/advisor_panel_app` ([§5](#5-advisor_panel_app--flutter-terapist-paneli)).
+- `asset_json` biçimi → snake_case (`base_url`).
+- Harf ID'leri → 20 ünsüz, B=1 … Z=20.
+- Canlı backend = `main` (`/api/assets/sets` canlıda da yok).
+
+**Açık sorular**
+
+1. **İki Render servisinden (`8nfn`, `pj6y`) hangisi esas?** Aynı DB'yi mi kullanıyorlar? Her ikisi de `main`'den mi deploy ediliyor?
+2. Kelime değerlendirmesi Whisper'da mı kalacak? Uzun kelimelerde `api_score = 0` sorunu nasıl çözülecek (Levenshtein benzerliği, FluentMe'ye geri dönüş)?
+3. `ş/s`, `ç/c`, `ı/i` ayrımı terapötik olarak puanlamada korunmalı mı?
+4. Kestrel 5194 tanımı yalnızca Development'a mı taşınmalı?
+5. Bu dokümanlar emekli Unity reposunda duruyor. Ekipçe erişilecek yeni yer neresi olmalı (BackendApi, ayrı bir `docs` reposu, organizasyon wiki'si)?
+6. Tez raporu (Ocak 2026 sürümü) Unity'yi çocuk, Flutter'ı terapist/veli uygulaması olarak, backend'i yer yer "Java Spring Boot" olarak anlatıyor. Final raporu bu dokümana göre güncellenmeli.
+7. Çocuk hesabını kim açacak: çocuk kendisi mi (Fonem kayıt), yalnızca terapist mi?
+
+---
+
+## 13. Ek: Unity İstemcisi (emekli)
+
+> `bitirmesel/GraduationProject`. Fonem'le değiştirildi; yeni geliştirme yapılmaz, referans ve arşiv amaçlı tutulur.
+
+**Ne yapıyordu:** Giriş → bildirimler/görevler → harf seçimi → seviye haritası (Hece/Kelime/Cümle × zorluk) → oyun. Çalışan tek oyun hafıza kartlarıydı (`MemoryGameManager`, `games.id = 4`). Ardından telaffuz aşaması geliyordu (FluentMe `/check`, eşik 70). Hece oyunu (`SyllableExerciseManager`) yazılmış ama hiçbir sahneye bağlanmamıştı.
+
+**Mimari özeti:** `DontDestroyOnLoad` singleton'lar (`APIManager`, `AssetLoader` (RAM → disk → ağ önbelleği), `SceneNavigator`, `PronunciationManager`), sahneler arası global durum için `static GameContext`, `BaseGameManager` → `GameLoader.GameModules[GameId]` ile oyun modülleri.
+
+**Bilinen sorunları (düzeltilmeyecek):**
+- Var olmayan endpoint'ler (`/api/assets/sets`, `/api/notifications/unread-count/{id}`, `/api/gamesessions/finish`).
+- `/check` yanıtını eski FluentMe dizi biçimiyle okuyor; backend artık `PronunciationResultDto` dönüyor → puan alınamıyor.
+- Oyun sonuçlarını backend'e hiç kaydetmiyor.
+- `AudioManager` sahnede yok; ölü script'ler var.
+
+Fonem'e taşınan iyi fikirler: telaffuz eşiği, hece kartı akışı (dinle → kaydet → puan), asset önbellekleme.
