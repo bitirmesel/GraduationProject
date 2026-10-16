@@ -92,13 +92,14 @@ Faz 2, tez demosunda "çocuk oynar → terapist görür" akışını sorunsuz ha
 | PR-16 | 4 | BE | Test projesi + `PronunciationScoringService` testleri | P2 | — | ✅ [BE#8](https://github.com/bitirmesel/BackendApi/pull/8) (20 test, CI'da) |
 | PR-20 | 4 | FN+PN | Flutter CI (`analyze` + `test`), bozuk şablon testlerini gerçek testlerle değiştir | P2 | — | ✅ [FN#22](https://github.com/bitirmesel/Fonem/pull/22) · [PN#4](https://github.com/bitirmesel/advisor_panel_app/pull/4) (CI'da 21 + 9 test) |
 | PR-21 | 4 | BE | `ILogger`, global hata yakalama, UTC tutarlılığı | P2 | PR-02 | ⬜ |
-| PR-22 | 4 | BE | Ölü kod temizliği (gameconfig mock, FluentMeService, Dapper, `Dtos.cs`) | P2 | PR-09 | ⬜ |
-| PR-23 | 4 | FN+PN | Ölü kod/paket temizliği, gerçek app id, release imzası, repo hijyeni | P2 | — | ⬜ |
+| PR-22 | 4 | BE | Ölü kod temizliği (gameconfig mock, FluentMeService, Dapper, `Dtos.cs`) | P2 | PR-09 | ✅ [BE#9](https://github.com/bitirmesel/BackendApi/pull/9) (`Models/FluentMe` PR-01 sonrasına → B29) |
+| PR-23 | 4 | FN+PN | Ölü kod/paket temizliği, gerçek app id, release imzası, repo hijyeni | P2 | — | ◐ temizlik: ✅ [FN#23](https://github.com/bitirmesel/Fonem/pull/23) · 🟨 [PN#5](https://github.com/bitirmesel/advisor_panel_app/pull/5); app id + imza ⏸️ hesap sahibi |
 | PR-24 | 5 | BE+FN | Ses kaydı saklama politikası + KVKK onayının backend'de tutulması | P1 | PR-15 | ⬜ |
 | PR-25+ | 5 | FN+BE | Yeni oyunlar ve gerçek içerik (Cümle S1-S3, "Yakında" oyunlar) | P2 | PR-07 | ⬜ |
 | PR-26 | 5 | UN | Unity reposunu emekliye ayır (README notu + GitHub arşiv) | P2 | doküman yeri kararı | ⬜ |
 | PR-27 | 2 | BE | `GET /api/players` 500 hatası (NULL alanlı oyuncu kaydı) | P1 | — | ✅ [BE#7](https://github.com/bitirmesel/BackendApi/pull/7) (`pj6y`'de doğrulandı) |
 | PR-28 | 2 | PN+BE | İstemcisi olmayan oyunlar (Fill Gap) görev olarak atanamasın | P1 | — | ⬜ |
+| PR-29 | 1 | BE | Npgsql güvenlik açığı CVE-2024-32655 (8.0.2 → 8.0.9) | **P0** | — | ✅ [BE#10](https://github.com/bitirmesel/BackendApi/pull/10) |
 | — | — | UN | ~~Unity: telaffuz DTO, oturum kaydı, LevelMap, hece oyunu, küçük düzeltmeler, token, davet ekranı~~ | — | — | 🗑️ Unity emekli (2026-10-16) |
 
 ---
@@ -293,6 +294,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | 2026-10-16 | ADIM 0 ekip kararıyla ertelendi. Repolar o tarihte public durumdaydı; sırlar yenilenene kadar risk açık kabul edildi. |
 | 2026-10-16 | PR akışına **CI + Claude review** adımı eklendi; PR-17 (CI) öne çekildi. PR-01 Render erişimi olmadığı için draft'a alındı. |
 | 2026-10-16 | PR-00 ve PR-17 merge edildi; PR-02 açıldı (Swagger maddesi PR-15'e taşındı). |
+| 2026-10-16 | Otonom tur (2): PR-22 (BE#9), PR-23a (FN#23), PR-29 (BE#10, yeni — Npgsql CVE) merge edildi; PR-23b (PN#5) açık. App id / release imzası bilinçli olarak bırakıldı. Backlog B28-B30. |
 | 2026-10-16 | Otonom tur: PR-27 (BE#7), PR-08 (FN#20), PR-09 (FN#21), PR-10 (PN#3), PR-16 (BE#8), PR-20 (FN#22, PN#4) merge edildi. PR-08 kapsamı daraldı (eşik → karar B22), PR-09'daki gameconfig maddesi geçersiz çıktı. Backlog B22-B27. |
 | 2026-10-16 | PR-05 (PN#2), PR-06 (BE#5), PR-07 (FN#19) merge edildi; PR-06b (BE#6) draft. PR dışı bulgular §10 Backlog'da toplandı; yeni kartlar PR-27, PR-28. |
 | 2026-10-16 | PR-02 (BE#4) ve PR-04 (FN#18) merge edildi. `8nfn` servisinin `main`'i deploy etmediği tespit edildi → PR-12 P0'a yükseltildi. |
@@ -335,7 +337,10 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | B24 | Terapistin **şifresiz** oluşturduğu öğrenciler hiç giriş yapamıyor | PR-27 | 🟡 | **Karar:** öğrenci oluştururken şifre zorunlu mu, yalnızca davet kodu mu? |
 | B25 | Şema EF dışında kurulduğu için 15 string alan daha modelde NOT NULL ama DB'de NULL olabilir (aynı hata sınıfı) | PR-27 review | 🟡 | PR-03 (şema dökümü + nullability hizalama) |
 | B26 | `asset_sets.asset_json` modelde nullable'dı ama migration'ı yoktu (snapshot kopukluğu) | PR-27 | 🟢 | ✅ PR-27 migration'ında kapandı |
-| B27 | Panelde `pubspec.lock` gitignore'da → CI ve ekip farklı paket sürümleriyle derliyor | PR-20 | 🟢 | PR-23 |
+| B27 | Panelde `pubspec.lock` gitignore'da → CI ve ekip farklı paket sürümleriyle derliyor | PR-20 | 🟢 | PR-23b (PN#5) |
+| B28 | **Npgsql 8.0.2'de yüksek önemli SQL injection açığı (CVE-2024-32655)** | PR-22 build uyarısı (NU1903) | 🔴 | ✅ PR-29; ⚠️ `8nfn` hâlâ eski sürümde (B1) |
+| B29 | `Models/FluentMe/*` kullanılmıyor ama `PronunciationController` `using` ediyor | PR-22 | 🟢 | PR-01 merge edildikten sonra sil (aynı dosya, çakışmasın) |
+| B30 | Fonem ve panelde **uyarılar sıfır**, CI artık uyarılarda da başarısız; bilgi notları (deprecated API: Fonem 56, panel ~105) henüz fatal değil | PR-23 | 🟢 | Kart yok (deprecated API güncellemesi) |
 
 ### PR-27 · BE · `GET /api/players` 500 hatası — ✅ BE#7
 
