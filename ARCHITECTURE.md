@@ -78,8 +78,8 @@ flowchart LR
 **Önemli gerçekler**
 
 - Tüm iş mantığı **tek bir monolit backend**'dedir; istemciler "ince"dir.
-- **Render'da aynı koddan iki servis çalışıyor:** Fonem `backendapi-8nfn`'e, terapist paneli `backendapi-pj6y`'ye bağlı. İkisi de aynı 54 endpoint'i sunuyor, lookup verileri birebir aynı (büyük olasılıkla aynı DB). Hangisinin esas olacağı açık soru ([§12](#12-açık-sorular-ve-kararlar)). Ortam değişkeni gerektiren her değişiklik **iki servise de** uygulanmalı.
-- ⚠️ **`8nfn` `main`'den otomatik deploy edilmiyor:** PR-02 merge edildikten sonra `pj6y` güncellendi, `8nfn` güncellenmedi (2026-10-16). Fonem şu an eski backend sürümüyle konuşuyor.
+- **Render'da aynı koddan iki servis, aynı veritabanı:** `pj6y` (`main`'den otomatik deploy) ve `8nfn` (deploy etmiyor). Aynı DB kullandıkları doğrulandı: `/api/tasks` iki serviste birebir aynı (2026-10-17). **2026-10-17'den beri (PR-12, FN#24)** Fonem REST çağrılarını `pj6y`'ye yapıyor. Telaffuz istekleri ise **geçici olarak `8nfn`'de**, çünkü `pj6y`'de `OPENAI_API_KEY` yok (B32). Terapist paneli zaten `pj6y`'de. Ortam değişkeni gerektiren her değişiklik, `8nfn` kapatılana kadar **iki servise de** uygulanmalı.
+- ⚠️ **`8nfn` `main`'den otomatik deploy edilmiyor** (2026-10-16'da doğrulandı). Yeni Fonem sürümü yüklenene kadar cihazlardaki eski APK'lar `8nfn`'e gitmeye devam eder.
 - Medya (görsel/ses) **Cloudinary**'de durur; veritabanında yalnızca URL parçaları (AssetSet JSON içinde) tutulur.
 - **Tasarlanan telaffuz hattı:** hece oyunları (1-3) → **Whisper** (`check-syllable`); hece dışındaki tüm oyunlar (kelime, cümle) → **FluentMe** (`check`).
 - ⚠️ **Bugün tüm oyunlar Whisper'da:** FluentMe çağrısı hata verdiği için Fonem Haziran 2026'da (`2408bb2`) kelime/cümle oyunlarını da geçici olarak `check-syllable`'a aldı. Koddaki yorum hatanın sebebini "backend token istiyor" diye açıklıyor, ama backend `/check` hiçbir zaman token istemedi; 401 FluentMe'nin kendi yanıtıydı. **2026-10-16 canlı testi:** `/check` iki serviste de 500; FluentMe giriş adresi (`thefluent.me/api/swagger/login`) **404 "Resource not found"**. thefluent.me sitesi Eylül 2026'da yenilenmiş, eski geliştirici API'si artık yok (RapidAPI üzerinden erişim doğrulanamadı). → [ROADMAP B31](ROADMAP.md#10-fark-edilenler-backlog)
@@ -97,7 +97,7 @@ flowchart LR
 | HTTP | `http` (sarmalayıcı `ApiClient`; PR-08 ile pubspec'te bildirildi) | `http` (doğrudan çağrılar) | — |
 | Ses | `record` (WAV 16 kHz mono), `audioplayers` | — | NAudio |
 | Depolama | `shared_preferences` | `shared_preferences` | PostgreSQL (EF Core 8) |
-| Base URL | `--dart-define=API_BASE_URL`, varsayılan `8nfn` | sabit `pj6y` (`api_config.dart`) | — |
+| Base URL | `--dart-define=API_BASE_URL`, varsayılan `pj6y`; telaffuz `PRONUNCIATION_BASE_URL`, varsayılan `8nfn` (geçici, B32) | sabit `pj6y` (`api_config.dart`) | — |
 | App id | `com.example.flutter_demo` ⚠️ | `com.example.advisor_panel_app` ⚠️ | — |
 | Test | 21 birim testi (PR-04, PR-07) | 9 birim testi (PR-05, PR-10) | 20 birim testi (PR-16) |
 | CI | ✅ analyze (hata + uyarı fatal) + test | ✅ analyze (hata + uyarı fatal) + test | ✅ GitHub Actions (build + test + docker) |
@@ -526,7 +526,7 @@ Görev yanıtında oyun tipi ve zorluk olmadığı için Fonem oyunu adla eşle�
 | PN | `GET /api/students` | ⚠️ `age`, `registeredAt` beklenir, dönmez | Boş gösterilir |
 | PN | `GET /api/therapists/{id}` | ⚠️ `title` beklenir, yok | "Terapist" varsayılanı |
 | PN | `GET /api/games`, `/api/letters` | ❌ yok (doğrusu `/api/lookup/...`) | Ölü kodda, etkisi yok |
-| PN | Base URL | ⚠️ `pj6y` (diğerleri `8nfn`) | Karar bekliyor |
+| FN+PN | Base URL | ✅ İkisi de `pj6y` (FN#24); FN telaffuzu geçici olarak `8nfn` | `pj6y`'ye `OPENAI_API_KEY` eklenince telaffuz da taşınır (B32) |
 | FN | `GET /api/players/{id}/tasks` | ✅ oyun tipi + zorluk (PR-06); ⏳ terapist PR-06b | Yönlendirme düzeldi (PR-07); profil kartındaki terapist PR-06b ile dolacak |
 | FN | `POST /api/notifications/{id}/read` | ✅ PR-09 (önceden PATCH → 405) | — |
 | FN | `GET /api/students/{id}` | ✅ PR-09 (önceden önce var olmayan `/api/players/{id}` deneniyordu) | — |
@@ -650,7 +650,7 @@ Görev yanıtında oyun tipi ve zorluk olmadığı için Fonem oyunu adla eşle�
 
 **Açık sorular**
 
-1. **İki Render servisinden (`8nfn`, `pj6y`) hangisi esas?** Aynı DB'yi mi kullanıyorlar? Her ikisi de `main`'den mi deploy ediliyor?
+1. ~~İki Render servisinden hangisi esas?~~ → **`pj6y`** (2026-10-17, PR-12). Aynı DB'yi kullandıkları doğrulandı; `main`'i yalnızca `pj6y` deploy ediyor. Kalan: `pj6y`'ye `OPENAI_API_KEY` eklemek ve `8nfn`'i kapatmak (Render erişimi).
 2. *(Araştırıldı → [docs/research/telaffuz-altyapisi-2026-10.md](docs/research/telaffuz-altyapisi-2026-10.md))* Kelime değerlendirmesi Whisper'da mı kalacak? Uzun kelimelerde `api_score = 0` sorunu nasıl çözülecek (Levenshtein benzerliği, FluentMe'ye geri dönüş)?
 3. `ş/s`, `ç/c`, `ı/i` ayrımı terapötik olarak puanlamada korunmalı mı?
 4. Kestrel 5194 tanımı yalnızca Development'a mı taşınmalı?
