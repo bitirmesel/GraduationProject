@@ -294,7 +294,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | 2026-10-16 | ADIM 0 ekip kararıyla ertelendi. Repolar o tarihte public durumdaydı; sırlar yenilenene kadar risk açık kabul edildi. |
 | 2026-10-16 | PR akışına **CI + Claude review** adımı eklendi; PR-17 (CI) öne çekildi. PR-01 Render erişimi olmadığı için draft'a alındı. |
 | 2026-10-16 | PR-00 ve PR-17 merge edildi; PR-02 açıldı (Swagger maddesi PR-15'e taşındı). |
-| 2026-10-16 | Unity'nin yalnızca erken bir demo olduğu netleşti; **tamamen gözden çıkarıldı** (düzeltme, test ve backend uyumluluğu yok). ARCHITECTURE tablolarından Unity sütunu/tüketicisi kaldırıldı. FluentMe hattının tüketicisi kalmadı → B31. |
+| 2026-10-16 | Unity'nin yalnızca erken bir demo olduğu netleşti; **tamamen gözden çıkarıldı** (düzeltme, test ve backend uyumluluğu yok). ARCHITECTURE tablolarından Unity sütunu/tüketicisi kaldırıldı. ~~FluentMe hattının tüketicisi kalmadı~~ → düzeltildi: FluentMe kelime/cümle oyunlarının hattıdır ama FluentMe API'si kapalı, Fonem geçici olarak Whisper kullanıyor (B31, 🟠). |
 | 2026-10-16 | Otonom tur (2): PR-22 (BE#9), PR-23a (FN#23), PR-29 (BE#10, yeni — Npgsql CVE) ve PR-23b (PN#5) merge edildi. App id / release imzası bilinçli olarak bırakıldı. Backlog B28-B30. |
 | 2026-10-16 | Otonom tur: PR-27 (BE#7), PR-08 (FN#20), PR-09 (FN#21), PR-10 (PN#3), PR-16 (BE#8), PR-20 (FN#22, PN#4) merge edildi. PR-08 kapsamı daraldı (eşik → karar B22), PR-09'daki gameconfig maddesi geçersiz çıktı. Backlog B22-B27. |
 | 2026-10-16 | PR-05 (PN#2), PR-06 (BE#5), PR-07 (FN#19) merge edildi; PR-06b (BE#6) draft. PR dışı bulgular §10 Backlog'da toplandı; yeni kartlar PR-27, PR-28. |
@@ -342,7 +342,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | B28 | **Npgsql 8.0.2'de yüksek önemli SQL injection açığı (CVE-2024-32655)** | PR-22 build uyarısı (NU1903) | 🔴 | ✅ PR-29; ⚠️ `8nfn` hâlâ eski sürümde (B1) |
 | B29 | `Models/FluentMe/*` kullanılmıyor ama `PronunciationController` `using` ediyor | PR-22 | 🟢 | PR-01 merge edildikten sonra sil (aynı dosya, çakışmasın) |
 | B30 | Fonem ve panelde **uyarılar sıfır**, CI artık uyarılarda da başarısız; bilgi notları (deprecated API: Fonem 56, panel ~105) henüz fatal değil | PR-23 | 🟢 | Kart yok (deprecated API güncellemesi) |
-| B31 | **FluentMe hattının (`/api/pronunciation/check`) tüketicisi kalmadı**: tek kullanıcısı Unity demosuydu; Fonem'deki `checkPronunciation` çağrılmayan ölü kod. Kaldırılırsa PR-01'de `FluentMe__*` değişkenleri gerekmez ve sızan FluentMe sırları için hesap kapatmak yeterli olur. Kelime puanlamasında FluentMe'ye dönüş seçeneği (ARCHITECTURE §12 soru 2) ile birlikte karar verilmeli | Unity gözden çıkarıldı (2026-10-16) | 🟡 | Karar · kaldırılırsa B29 da kapanır |
+| B31 | **Kelime ve cümle oyunlarının telaffuz değerlendirmesi çalışmıyor (FluentMe).** Tasarım: hece → Whisper, diğer oyunlar → FluentMe. Fonem Haziran'da (`2408bb2`) FluentMe hatası yüzünden tümünü geçici olarak Whisper'a aldı (yorumdaki "backend token istiyor" teşhisi yanlış; 401 FluentMe'den geliyordu). 2026-10-16: `/check` iki serviste 500, FluentMe giriş adresi 404; thefluent.me'nin eski geliştirici API'si kaldırılmış görünüyor. Whisper'da uzun kelimeler 0 puan alıyor (B16) | Unity kararı sonrası inceleme · canlı test | 🟠 | Karar: FluentMe'ye yeni erişim (RapidAPI/destek) · başka bir servis · Whisper puanlamasını iyileştirme |
 
 ### PR-27 · BE · `GET /api/players` 500 hatası — ✅ BE#7
 

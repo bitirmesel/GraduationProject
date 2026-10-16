@@ -81,7 +81,8 @@ flowchart LR
 - **Render'da aynı koddan iki servis çalışıyor:** Fonem `backendapi-8nfn`'e, terapist paneli `backendapi-pj6y`'ye bağlı. İkisi de aynı 54 endpoint'i sunuyor, lookup verileri birebir aynı (büyük olasılıkla aynı DB). Hangisinin esas olacağı açık soru ([§12](#12-açık-sorular-ve-kararlar)). Ortam değişkeni gerektiren her değişiklik **iki servise de** uygulanmalı.
 - ⚠️ **`8nfn` `main`'den otomatik deploy edilmiyor:** PR-02 merge edildikten sonra `pj6y` güncellendi, `8nfn` güncellenmedi (2026-10-16). Fonem şu an eski backend sürümüyle konuşuyor.
 - Medya (görsel/ses) **Cloudinary**'de durur; veritabanında yalnızca URL parçaları (AssetSet JSON içinde) tutulur.
-- Fonem'in tüm oyunları telaffuzu **Whisper** hattıyla (`check-syllable`) değerlendirir; FluentMe hattının (`check`) **canlı tüketicisi yok**: tek kullanıcısı Unity demosuydu, Fonem'deki `FluentMeService.checkPronunciation` çağrılmayan ölü kod. Hattın kaldırılıp kaldırılmayacağı karar bekliyor ([ROADMAP B31](ROADMAP.md#10-fark-edilenler-backlog)).
+- **Tasarlanan telaffuz hattı:** hece oyunları (1-3) → **Whisper** (`check-syllable`); hece dışındaki tüm oyunlar (kelime, cümle) → **FluentMe** (`check`).
+- ⚠️ **Bugün tüm oyunlar Whisper'da:** FluentMe çağrısı hata verdiği için Fonem Haziran 2026'da (`2408bb2`) kelime/cümle oyunlarını da geçici olarak `check-syllable`'a aldı. Koddaki yorum hatanın sebebini "backend token istiyor" diye açıklıyor, ama backend `/check` hiçbir zaman token istemedi; 401 FluentMe'nin kendi yanıtıydı. **2026-10-16 canlı testi:** `/check` iki serviste de 500; FluentMe giriş adresi (`thefluent.me/api/swagger/login`) **404 "Resource not found"**. thefluent.me sitesi Eylül 2026'da yenilenmiş, eski geliştirici API'si artık yok (RapidAPI üzerinden erişim doğrulanamadı). → [ROADMAP B31](ROADMAP.md#10-fark-edilenler-backlog)
 - Render ücretsiz katmanı soğuk başlatma yapar; ilk istek 30-60 sn sürebilir.
 
 ---
@@ -184,7 +185,7 @@ flowchart TD
 
 ### 4.6 Ölü / sabit kodlu
 
-- Ölü: ~~`api_service.dart`, `profile/pages/*`, `models/{models,user_model}.dart`, `db/{app_db_context,therapist_client}.dart`~~ → ✅ PR-23a'da silindi. Kalan: `FluentMeService.checkPronunciation` + FluentMe parse (~200 satır), terapist tarafı davet/bağlantı metotları.
+- Ölü: ~~`api_service.dart`, `profile/pages/*`, `models/{models,user_model}.dart`, `db/{app_db_context,therapist_client}.dart`~~ → ✅ PR-23a'da silindi. Kalan: terapist tarafı davet/bağlantı metotları. `FluentMeService.checkPronunciation` şu an çağrılmıyor ama **ölü kod değil, silinmemeli**: kelime/cümle oyunlarının asıl hattı (B31).
 - Sabit: harf ID eşlemesi, oyun ID'leri, açık harfler, bildirimler sayfasının **örnek veriyle açılması** (`notifications_page.dart:35`), bildirim ayarları yalnızca yerel.
 
 ---
@@ -404,7 +405,7 @@ Hiçbiri kimlik doğrulama istemez. **FN** = Fonem, **PN** = terapist paneli.
 
 | Metot | Yol | Motor | Tüketici |
 |---|---|---|---|
-| POST | `/api/pronunciation/check` (`text`, `audio_file`) | FluentMe | **Yok** (yalnızca Unity demosu kullanıyordu; FN'de ölü kod) → B31 |
+| POST | `/api/pronunciation/check` (`text`, `audio_file`) | FluentMe | Tasarımda FN kelime/cümle oyunları; **şu an çalışmıyor** (FluentMe API'si kapalı), FN geçici olarak Whisper kullanıyor → B31 |
 | POST | `/api/pronunciation/check-syllable` (`text`, `audio_file`) | Whisper | **FN — tüm oyunlar** |
 
 ### 6.7 Telaffuz değerlendirme hattı
@@ -425,7 +426,7 @@ sequenceDiagram
     API->>API: PronunciationScoringService.Evaluate(target, transcript, 0)
     API-->>FN: PronunciationResultDto {score, passed, feedback_key, transcript…}
 
-    Note over API,FM: Kullanılmayan hat — /api/pronunciation/check (B31)
+    Note over API,FM: Kelime/cümle hattı — /api/pronunciation/check (⚠️ FluentMe API kapalı, B31)
     API->>FM: login → post → (WAV → Cloudinary) → score
     FM-->>API: overall_points + transcript
     API->>API: Evaluate(target, transcript, apiScore)
