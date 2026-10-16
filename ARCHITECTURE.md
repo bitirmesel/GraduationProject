@@ -5,7 +5,7 @@
 > Yeni bir işe başlamadan önce ilgili bölümü okuyun; mimariyi değiştiren her PR'da bu dosyayı da güncelleyin.
 >
 > **Son inceleme:** 2026-10-16 · **İncelenen sürümler:** `Fonem@1ed3f6d`, `advisor_panel_app@6f90bbb`, `BackendApi@4b0ccc5`, `GraduationProject@873c283`
-> **Son güncelleme:** 2026-10-16 — `BackendApi@2663677` (PR-06), `Fonem@e16b0d3` (PR-07), `advisor_panel_app@2f651ea` (PR-05)
+> **Son güncelleme:** 2026-10-16 — `BackendApi@ef4c808` (PR-16), `Fonem@5cec09b` (PR-09), `advisor_panel_app@5274811` (PR-10)
 >
 > İş planı ve PR sırası için: **[ROADMAP.md](ROADMAP.md)**
 
@@ -100,8 +100,8 @@ flowchart LR
 | Depolama | `shared_preferences` | `shared_preferences` | PostgreSQL (EF Core 8) | `persistentDataPath` önbellek |
 | Base URL | `--dart-define=API_BASE_URL`, varsayılan `8nfn` | sabit `pj6y` (`api_config.dart`) | — | Inspector, `8nfn` |
 | App id | `com.example.flutter_demo` ⚠️ | `com.example.advisor_panel_app` ⚠️ | — | `com.DefaultCompany.ParroTalk` |
-| Test | Şablon test (bozuk) | Şablon test (bozuk) | Yok | Yok |
-| CI | Yok | Yok | ✅ GitHub Actions (build + docker) | Yok |
+| Test | 21 birim testi (PR-04, PR-07) | 9 birim testi (PR-05, PR-10) | 20 birim testi (PR-16) | Yok |
+| CI | 🟨 analyze + test (PR-20) | 🟨 analyze + test (PR-20) | ✅ GitHub Actions (build + test + docker) | Yok |
 
 Ekip: 3 katkıcı. Fonem'de ~95 commit (2026-04 → 2026-06), panelde ~20 commit, backend'de ~110 commit.
 
@@ -523,15 +523,15 @@ Görev yanıtında oyun tipi ve zorluk olmadığı için Fonem oyunu adla eşle�
 
 | İstemci | Çağrı | Durum | Etki |
 |---|---|---|---|
-| PN | `POST /api/auth/register` | ❌ alan uyuşmazlığı (`name` ↔ `fullName`; `username`, `verifyPassword` yok) | Panelden kayıt imkânsız |
+| PN | `POST /api/auth/register` | ✅ PR-10 (`fullName`, `username`, `verifyPassword`) | Kayıt çalışıyor; giriş kullanıcı adıyla da yapılabiliyor |
 | PN | `GET /api/students` | ⚠️ `age`, `registeredAt` beklenir, dönmez | Boş gösterilir |
 | PN | `GET /api/therapists/{id}` | ⚠️ `title` beklenir, yok | "Terapist" varsayılanı |
 | PN | `GET /api/games`, `/api/letters` | ❌ yok (doğrusu `/api/lookup/...`) | Ölü kodda, etkisi yok |
 | PN | Base URL | ⚠️ `pj6y` (diğerleri `8nfn`) | Karar bekliyor |
 | FN | `GET /api/players/{id}/tasks` | ✅ oyun tipi + zorluk (PR-06); ⏳ terapist PR-06b | Yönlendirme düzeldi (PR-07); profil kartındaki terapist PR-06b ile dolacak |
-| FN | `PATCH /api/notifications/{id}/read` | ❌ backend POST | 405 (yalnızca yedek yolda) |
-| FN | `GET /api/players/{id}` | ❌ yok | Her profil açılışında boşa 404/405, sonra `/students/{id}` |
-| FN | `GET /api/gameconfig/{g}/{l}` | ⚠️ ham metin; Fonem Map bekliyor | Asset-sets'e düşüyor (çift çağrı) |
+| FN | `POST /api/notifications/{id}/read` | ✅ PR-09 (önceden PATCH → 405) | — |
+| FN | `GET /api/students/{id}` | ✅ PR-09 (önceden önce var olmayan `/api/players/{id}` deneniyordu) | — |
+| FN | `GET /api/gameconfig/{g}/{l}` | ✅ `text/plain` ama geçerli JSON; `ApiClient` çözüyor (kelime oyunları 4-7) | `gameId = 1` mock'una Fonem ulaşmıyor; silinmesi PR-22 |
 | FN | `check-syllable` web (`webm`) | ❌ backend yalnızca WAV | Web'de değerlendirme 500 |
 | FN | `check-syllable` mobil | ✅ | — |
 | FN | `gamesessions/start` + `complete`, inbox, redeem, asset-sets | ✅ | — |
@@ -557,21 +557,21 @@ Görev yanıtında oyun tipi ve zorluk olmadığı için Fonem oyunu adla eşle�
 
 ### P1 — İşlevsel kırıklar
 
-1. Panelden **terapist kaydı imkânsız** (400).
+1. ~~Panelden terapist kaydı imkânsız~~ → ✅ PR-10.
 2. ~~Fonem görev yönlendirmesi~~ → ✅ PR-06 + PR-07. Kalan: Fill Gap atanabiliyor ama oyunu yok → PR-28.
-2b. `GET /api/players` iki serviste de 500 → PR-27.
-3. Fonem **Cümle Kur MP4'leri `pubspec.yaml`'da yok** → oyun açılmıyor.
-4. Cümle sekmesi pratikte hep kilitli; yalnızca B, T, K açık.
-5. Geçme eşiği tutarsız (hece: backend `passed`; diğer oyunlar: istemcide 70/80).
+2b. ~~`GET /api/players` 500~~ → ✅ PR-27 (`pj6y`; `8nfn` deploy etmiyor → B1).
+3. ~~Cümle Kur MP4'leri paketlenmiyor~~ → ✅ PR-08.
+4. Cümle sekmesi B, T, K'da kilitli: **bilinçli** ("henüz hazır değil"), hata değil. Görevden açılan Cümle Kur çalışıyor.
+5. Geçme eşiği tutarsız (hece: backend `passed` 70; diğer oyunlar istemcide 70/80) → **karar** (Backlog B22).
 6. Whisper hattında uzun ve tam eşleşmeyen kelimeler 0 puan alıyor (`api_score` = 0).
 7. Panel haftalık grafik gün etiketleri yanlış; düzelten dal birleştirilmemiş.
 8. Panel raporlarında sabit demo kartı ("canlı seans"); "şifremi unuttum" sahte başarı gösteriyor.
 9. İki Render servisi → ortam ve deploy tutarsızlığı riski.
-10. Fonem `http` paketi `pubspec.yaml`'da doğrudan bildirilmemiş (yalnızca dolaylı bağımlılık) → derleme riski.
+10. ~~Fonem `http` paketi bildirilmemiş~~ → ✅ PR-08.
 
 ### P2 — Kod kalitesi
 
-- Üç istemcide de test yok (Flutter şablon testleri bozuk); Flutter repolarında CI yok.
+- Testler başladı (Fonem 21, panel 9, backend 20) ve CI'da çalışıyor (backend ✅, Flutter PR-20). Ekran/entegrasyon testi yok.
 - Panel: servisler birbirini tekrar ediyor (`ReportService` ↔ diğerleri), `therapistId` okuma kodu ~12 kez kopyalanmış, N+1 istek (öğrenci seçimi), `mounted` kontrolsüz `setState`, dispose edilmeyen controller'lar, ~55 deprecated API kullanımı, `pubspec.lock` gitignore'da.
 - Fonem: hece oyunu kayıt ve oturum mantığını ortak mixin'den kopyalamış; iki ayrı session store; çok sayıda ölü dosya.
 - Backend: `Console.WriteLine` loglama, `DateTime.Now`/`UtcNow` karışık, endpoint'lerde tekrarlanan doğrulama, kullanılmayan `Dapper`/`FluentMeService`.
