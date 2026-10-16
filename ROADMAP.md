@@ -84,7 +84,7 @@ Faz 2, tez demosunda "çocuk oynar → terapist görür" akışını sorunsuz ha
 | PR-10 | 2 | PN | Terapist kaydını düzelt (+ doğrulama, kullanıcı adıyla giriş) | **P1** | — | ✅ [PN#3](https://github.com/bitirmesel/advisor_panel_app/pull/3) |
 | PR-11 | 2 | PN | Grafik gün etiketleri / saat dilimi; sahte "canlı seans" ve "şifremi unuttum" | P1 | — | ⬜ |
 | PR-12 | 2 | BE+FN+PN | Tek backend servisi + `8nfn` deploy ayarı | **P0** ⬆️ | 🔑 karar + Render | ◐ Esas servis `pj6y`: ✅ [FN#24](https://github.com/bitirmesel/Fonem/pull/24). Kalan 🔑: `pj6y`'ye `OPENAI_API_KEY` (B32), `8nfn`'i kapat |
-| PR-13 | 3 | BE | Şifre hash'leme (şeffaf geçiş) | P1 | PR-02 | ⬜ |
+| PR-13 | 3 | BE | Şifre hash'leme (şeffaf geçiş) | P1 | PR-02 | ◐ ✅ [BE#13](https://github.com/bitirmesel/BackendApi/pull/13) hash + backfill (canlıda). Kalan **PR-13b**: düz metin sütununu temizle (hash'le giriş doğrulanınca; tercihen `8nfn` kapanınca) |
 | PR-14 | 3 | BE | Oyuncu JWT'si + rol claim'leri | P1 | PR-13 | ⬜ |
 | PR-18 | 3 | FN | Token'ı güvenli sakla ve her istekte gönder | P1 | PR-14 | ⬜ |
 | PR-19 | 3 | PN | Token'ı güvenli sakla ve **her** istekte gönder | P1 | PR-14 | ⬜ |
@@ -296,6 +296,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | 2026-10-16 | ADIM 0 ekip kararıyla ertelendi. Repolar o tarihte public durumdaydı; sırlar yenilenene kadar risk açık kabul edildi. |
 | 2026-10-16 | PR akışına **CI + Claude review** adımı eklendi; PR-17 (CI) öne çekildi. PR-01 Render erişimi olmadığı için draft'a alındı. |
 | 2026-10-16 | PR-00 ve PR-17 merge edildi; PR-02 açıldı (Swagger maddesi PR-15'e taşındı). |
+| 2026-10-17 | **Faz 3 kararları onaylandı** (PasswordHasher, çocuk token'ı 30 gün + kayan yenileme, terapistin ürettiği giriş kodu, Admin rolü). PR-13 (BE#13) merge edildi; migration ve backfill `pj6y`'de çalıştı. Düz metin silme ayrı adım (PR-13b). |
 | 2026-10-17 | **Fonem uçtan uca testi (web, `pj6y`):** giriş (kullanıcı yaptı), harf haritası, inbox rozeti, görev listesi, görev → doğru oyun (Üçlü Eşleştir, Gölgesini Bul), içerik yükleme ve eşleştirme çalışıyor. Telaffuz ve tamamlama test edilemedi (tarayıcı panelinde mikrofon engelli; web webm → B17). PR-28 (BE#11, PN#6) ve B23 (BE#12) merge edildi. Faz 3 tasarım taslağı: [docs/design/faz3-kimlik-ve-yetki.md](docs/design/faz3-kimlik-ve-yetki.md). Backlog B33-B35. Proje tezden sonra startup olarak sürecek. |
 | 2026-10-17 | Render erişimi olmadan PR-12 ilerletildi: iki servisin aynı DB'yi kullandığı doğrulandı, Fonem REST çağrıları `pj6y`'ye taşındı (FN#24). Telaffuz, `pj6y`'de `OPENAI_API_KEY` olmadığı için geçici olarak `8nfn`'de (B32). |
 | 2026-10-16 | Unity'nin yalnızca erken bir demo olduğu netleşti; **tamamen gözden çıkarıldı** (düzeltme, test ve backend uyumluluğu yok). ARCHITECTURE tablolarından Unity sütunu/tüketicisi kaldırıldı. ~~FluentMe hattının tüketicisi kalmadı~~ → düzeltildi: FluentMe kelime/cümle oyunlarının hattıdır ama FluentMe API'si kapalı, Fonem geçici olarak Whisper kullanıyor (B31, 🟠). |

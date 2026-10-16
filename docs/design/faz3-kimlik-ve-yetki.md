@@ -1,6 +1,6 @@
 # Faz 3 Tasarımı: Kimlik Doğrulama ve Yetkilendirme
 
-> **Durum:** Taslak, **onay bekliyor** · **Tarih:** 2026-10-17 · **Kapsam:** ROADMAP PR-13, PR-14, PR-18, PR-19, PR-15 · **Bağlam:** Proje tezden sonra bir startup olarak sürecek; bu faz gerçek kullanıcılar (çocuklar, terapistler) için zorunlu.
+> **Durum:** ✅ Onaylandı (2026-10-17; kararlar §7) · PR-13 yayında · **Tarih:** 2026-10-17 · **Kapsam:** ROADMAP PR-13, PR-14, PR-18, PR-19, PR-15 · **Bağlam:** Proje tezden sonra bir startup olarak sürecek; bu faz gerçek kullanıcılar (çocuklar, terapistler) için zorunlu.
 >
 > Bu doküman kod yazılmadan önce geçiş planını netleştirmek için yazıldı. §7'deki kararlar verilmeden PR açılmayacak.
 
@@ -124,10 +124,16 @@ Her adım ayrı bir PR'dır. CI ve review'dan geçer. Adım 6 senin açık onay�
 | `therapist_clients` eksik ya da tutarsız → terapist kendi öğrencisini göremez | PR-15a logları sahiplik uyuşmazlıklarını da gösterir; veri zorlamadan önce düzeltilir. Ayrıca PR-03 şema dökümü |
 | Anahtar yenilenmeden zorlama | §2: PR-15b, PR-01 ve yeni anahtar olmadan merge edilmez (PR'a merge koşulu olarak yazılır) |
 
-## 7. Onayını bekleyen kararlar
+## 7. Kararlar (2026-10-17, onaylandı)
 
-1. **Hash algoritması:** `PasswordHasher` (önerim; yerleşik, bağımlılık yok) mı, BCrypt mi?
-2. **Çocuk token süresi:** 30 gün + kayan yenileme (önerim) mi, daha kısa mı?
-3. **Şifresiz çocuk hesapları (B24):** Terapist oluştururken şifre zorunlu mu olsun, yoksa çocuk davet koduyla ya da terapistin verdiği tek kullanımlık kodla mı girsin? Startup açısından öneri: **terapist panelinden üretilen kısa giriş kodu** (çocuk e-posta ve şifre bilmek zorunda kalmaz).
-4. **Yönetici endpoint'leri:** Admin rolüyle mi korunsun, yoksa production'dan kaldırılıp yalnızca yerel ortamda mı çalışsın?
-5. **Sıra:** PR-13 ve PR-14'e Render erişimini beklemeden başlanması (önerim: evet, ikisi de kırıcı değil).
+1. **Hash algoritması:** ASP.NET Core `PasswordHasher`.
+2. **Çocuk token'ı:** 30 gün + kayan yenileme.
+3. **Şifresiz çocuk hesapları (B24):** Terapist panelinden üretilen kısa giriş kodu. Çocuk e-posta ve şifre bilmek zorunda kalmaz. Ayrıntılı tasarım PR-14 kapsamında.
+4. **Yönetici endpoint'leri:** `Admin` rolüyle korunur.
+5. **Sıra:** PR-13 ve PR-14 Render erişimi beklenmeden yapılır; zorlama (PR-15b) PR-01 ve yeni `Jwt__Key` olmadan yayına çıkmaz.
+
+### Uygulama notları
+
+- **PR-13 ([BE#13](https://github.com/bitirmesel/BackendApi/pull/13), 2026-10-17):**
+  - `password_hash` sütunları eklendi; giriş anında yükseltme ve arka planda backfill çalışıyor.
+  - **Düz metin sütunu henüz silinmedi.** Eski `8nfn` servisi aynı veritabanını düz metinle okuyor. Silme geri alınamaz olduğu için ayrı adım: **PR-13b**. Koşul: hash'le girişlerin canlıda doğrulanması ve tercihen `8nfn`'in kapatılması.
