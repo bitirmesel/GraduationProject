@@ -68,9 +68,9 @@ Faz 2, tez demosunda "çocuk oynar → terapist görür" akışını çalışır
 | ID | Faz | Repo | Başlık | Öncelik | Bağımlılık | Durum |
 |---|---|---|---|---|---|---|
 | ADIM 0 | 0 | 🔑 | Sızan sırları yenile (rotate) | **P0** | — | ⏸️ ertelendi (2026-10-16) |
-| PR-00 | 0 | UN+BE | Mimari doküman, yol haritası, PR şablonu | P0 | — | 🟨 [UN#1](https://github.com/bitirmesel/GraduationProject/pull/1) · [BE#1](https://github.com/bitirmesel/BackendApi/pull/1) |
+| PR-00 | 0 | UN+BE | Mimari doküman, yol haritası, PR şablonu | P0 | — | ✅ [UN#1](https://github.com/bitirmesel/GraduationProject/pull/1) · [BE#1](https://github.com/bitirmesel/BackendApi/pull/1) |
 | PR-01 | 1 | BE | Sırları koddan çıkar, ortam değişkenlerine taşı | **P0** | — (ADIM 0'dan bağımsız yapıldı) | ⏸️ [BE#2](https://github.com/bitirmesel/BackendApi/pull/2) draft — review düzeltildi; merge için Render env bekliyor |
-| PR-02 | 1 | BE | Kişisel veri sızıntısını durdur (DTO, hata detayı, Swagger) | **P0** | — | ⬜ |
+| PR-02 | 1 | BE | Kişisel veri sızıntısını durdur (şifre alanı, hata detayı) | **P0** | — | 🔧 yapılıyor |
 | PR-03 | 1 | BE | Yerel geliştirme veritabanı (docker-compose + seed) | P0 | PR-01 | ⬜ |
 | PR-04 | 2 | UN | Telaffuz yanıtını `PronunciationResultDto` ile oku | **P1** | — | ⬜ |
 | PR-05 | 2 | BE | Oturum başlatmada AssetSet'i otomatik çöz + `assetSetId` dön | P1 | — | ⬜ |
@@ -85,7 +85,7 @@ Faz 2, tez demosunda "çocuk oynar → terapist görür" akışını çalışır
 | PR-14 | 3 | FL | Token'ı her istekte gönder | P1 | PR-12 | ⬜ |
 | PR-15 | 3 | BE | Endpoint'leri yetkilendir + sahiplik kontrolü | P1 | PR-13, PR-14 | ⬜ |
 | PR-16 | 4 | BE | Test projesi + `PronunciationScoringService` birim testleri | P2 | — | ⬜ |
-| PR-17 | 4 | BE | GitHub Actions: build (+ test PR-16 ile) | P1 (öne çekildi) | — | 🟨 [BE#3](https://github.com/bitirmesel/BackendApi/pull/3) CI ✅ |
+| PR-17 | 4 | BE | GitHub Actions: build (+ test PR-16 ile) | P1 (öne çekildi) | — | ✅ [BE#3](https://github.com/bitirmesel/BackendApi/pull/3) (yalnızca build; test adımı PR-16 ile) |
 | PR-18 | 4 | BE | `ILogger`, global hata yakalama, UTC tutarlılığı | P2 | PR-02 | ⬜ |
 | PR-19 | 4 | BE | Ölü kod temizliği (mock, FluentMeService, Dapper, `Dtos.cs`) | P2 | PR-07 | ⬜ |
 | PR-20 | 4 | UN | Ölü kod temizliği, tek API ayar dosyası, `async void` güvenliği | P2 | PR-09 | ⬜ |
@@ -139,12 +139,13 @@ Hesap sahibinin yapacakları:
 ### PR-02 · BE · Kişisel veri sızıntısını durdur
 
 **Adımlar**
-1. `GET /api/students/{id}`, `GET/PUT /api/therapists/{id}`: entity yerine DTO dön (şifre alanı yok).
+1. `Player.Password` ve `Therapist.Password` alanlarına `[JsonIgnore]`: şifre **hiçbir** JSON yanıtında yer almaz (`GET /api/students/{id}`, `GET/PUT /api/therapists/{id}` ve ileride eklenecek tüm entity dönüşleri). Diğer alan adları aynı kalır → Flutter/Unity etkilenmez. Tam DTO'ya geçiş PR-15'te endpoint'ler elden geçirilirken yapılır.
 2. `GET /api/students` içindeki stack trace döndüren geçici `catch`'i kaldır.
-3. Asset endpoint'lerindeki `ex.Message` / inner exception dönüşlerini genel mesajla değiştir (detay loglansın).
-4. Swagger'ı yalnızca `Development`'ta veya `ENABLE_SWAGGER=true` ise aç (Flutter ekibi canlıda kullanıyorsa env ile açık tutulabilir).
+3. `ex.Message` / inner exception / dış servis hata gövdesi dönen tüm yerler (Asset, Media, Whisper, FluentMe): istemciye genel mesaj + kısa **hata kodu**; tam detay yalnızca loglanır (hata koduyla Render loglarında bulunur).
 
-**Kabul kriterleri:** Hiçbir yanıtta `password` alanı yok · 500 hatalarında stack trace yok · alan adları değişmediği için Flutter/Unity etkilenmiyor.
+**Kapsam dışı:** Swagger'ı prod'da kapatmak → **PR-15**'e taşındı (ekip asset'leri Swagger'dan yönetiyor; endpoint'ler zaten kimliksiz olduğu için gizlemek tek başına koruma sağlamıyor; Render erişimi gerektiriyor).
+
+**Kabul kriterleri:** Hiçbir yanıtta `password` alanı yok · 500 hatalarında stack trace / exception mesajı yok · yanıt şekilleri (alan adları, problem+json) korunuyor.
 
 ### PR-03 · BE · Yerel geliştirme veritabanı
 
@@ -248,6 +249,8 @@ Hesap sahibinin yapacakları:
 - **Sahiplik:** terapist yalnızca `therapist_clients`'taki çocukları; oyuncu yalnızca kendi `playerId`'sini görür. `therapistId`/`playerId` sorgu parametresi yerine token'dan okunur.
 - Açık kalanlar: login/register, lookup, `invitations/redeem` (oyuncu token'ı ile).
 - Debug endpoint'leri (`/api/players`, `/api/tasks`, `/api/gamesessions/all`, `/api/admin/*`) `admin` rolüne veya yalnızca Development'a alınır.
+- Swagger: prod'da `admin` rolüne veya `ENABLE_SWAGGER=true` koşuluna bağlanır (PR-02'den taşındı).
+- Entity dönen endpoint'ler DTO'ya çevrilir.
 - ✔️ Token'sız istek `401`, başkasının verisi `403`.
 
 ---
