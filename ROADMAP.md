@@ -19,12 +19,15 @@ flowchart LR
     B --> C["3. Uygula<br/>küçük, anlamlı commit'ler"]
     C --> D["4. Doğrula<br/>build + manuel test<br/>(kabul kriterleri)"]
     D --> E["5. PR aç<br/>şablonu doldur"]
-    E --> F["6. Review<br/>en az 1 ekip arkadaşı"]
-    F --> G["7. Merge<br/>squash merge"]
-    G --> H["8. Kapat<br/>ROADMAP durumunu ✅ yap,<br/>ARCHITECTURE'ı güncelle"]
+    E --> F["6. Kontrol<br/>CI yeşil (BE)<br/>+ Claude code review"]
+    F --> F2["7. Düzelt<br/>bulguları düzelt,<br/>PR'a özet yorum yaz"]
+    F2 --> G["8. Merge<br/>ekip onayı + squash merge"]
+    G --> H["9. Kapat<br/>ROADMAP durumunu ✅ yap,<br/>ARCHITECTURE'ı güncelle"]
 ```
 
 Her adımda ne yaptığımızı açıkça yazarız: PR açıklamasında **Ne / Neden / Nasıl test edildi / Riskler** bölümleri zorunludur (bkz. `.github/pull_request_template.md`).
+
+**Kontrol adımı:** Backend PR'larında GitHub Actions (`dotnet build` + `docker build`) yeşil olmalı. Her PR Claude code review'dan geçer; bulgular PR'a satır içi yorum olarak yazılır, düzeltilenler ayrı bir yorumla özetlenir. Ertelenen bulgular ROADMAP'te ilgili karta not edilir.
 
 ### 1.2 Kurallar
 
@@ -66,7 +69,7 @@ Faz 2, tez demosunda "çocuk oynar → terapist görür" akışını çalışır
 |---|---|---|---|---|---|---|
 | ADIM 0 | 0 | 🔑 | Sızan sırları yenile (rotate) | **P0** | — | ⏸️ ertelendi (2026-10-16) |
 | PR-00 | 0 | UN+BE | Mimari doküman, yol haritası, PR şablonu | P0 | — | 🟨 [UN#1](https://github.com/bitirmesel/GraduationProject/pull/1) · [BE#1](https://github.com/bitirmesel/BackendApi/pull/1) |
-| PR-01 | 1 | BE | Sırları koddan çıkar, ortam değişkenlerine taşı | **P0** | — (ADIM 0'dan bağımsız yapıldı) | 🟨 [BE#2](https://github.com/bitirmesel/BackendApi/pull/2) |
+| PR-01 | 1 | BE | Sırları koddan çıkar, ortam değişkenlerine taşı | **P0** | — (ADIM 0'dan bağımsız yapıldı) | ⏸️ [BE#2](https://github.com/bitirmesel/BackendApi/pull/2) draft — review düzeltildi; merge için Render env bekliyor |
 | PR-02 | 1 | BE | Kişisel veri sızıntısını durdur (DTO, hata detayı, Swagger) | **P0** | — | ⬜ |
 | PR-03 | 1 | BE | Yerel geliştirme veritabanı (docker-compose + seed) | P0 | PR-01 | ⬜ |
 | PR-04 | 2 | UN | Telaffuz yanıtını `PronunciationResultDto` ile oku | **P1** | — | ⬜ |
@@ -82,7 +85,7 @@ Faz 2, tez demosunda "çocuk oynar → terapist görür" akışını çalışır
 | PR-14 | 3 | FL | Token'ı her istekte gönder | P1 | PR-12 | ⬜ |
 | PR-15 | 3 | BE | Endpoint'leri yetkilendir + sahiplik kontrolü | P1 | PR-13, PR-14 | ⬜ |
 | PR-16 | 4 | BE | Test projesi + `PronunciationScoringService` birim testleri | P2 | — | ⬜ |
-| PR-17 | 4 | BE | GitHub Actions: build + test | P2 | PR-16 | ⬜ |
+| PR-17 | 4 | BE | GitHub Actions: build (+ test PR-16 ile) | P1 (öne çekildi) | — | 🟨 [BE#3](https://github.com/bitirmesel/BackendApi/pull/3) CI ✅ |
 | PR-18 | 4 | BE | `ILogger`, global hata yakalama, UTC tutarlılığı | P2 | PR-02 | ⬜ |
 | PR-19 | 4 | BE | Ölü kod temizliği (mock, FluentMeService, Dapper, `Dtos.cs`) | P2 | PR-07 | ⬜ |
 | PR-20 | 4 | UN | Ölü kod temizliği, tek API ayar dosyası, `async void` güvenliği | P2 | PR-09 | ⬜ |
@@ -253,7 +256,7 @@ Hesap sahibinin yapacakları:
 
 | PR | İçerik | Kabul |
 |---|---|---|
-| **PR-16** BE | `DktApi.Tests` (xUnit). `PronunciationScoringService` tablo testleri (`exact_match`, `length_variant`, Türkçe karakterler…). | `dotnet test` yeşil |
+| **PR-16** BE | `DktApi.Tests` (xUnit). `PronunciationScoringService` tablo testleri (`exact_match`, `length_variant`, Türkçe karakterler…). ⚠️ Kökteki `DktApi.csproj` tüm alt klasörleri derler: `<Compile Remove="tests/**" />` eklenmeli. CI'a `dotnet test` adımı eklenir. | `dotnet test` yeşil, CI'da çalışıyor |
 | **PR-17** BE | `.github/workflows/backend.yml`: restore → build → test her PR'da. | PR'larda yeşil tik |
 | **PR-18** BE | `Console.WriteLine` → `ILogger`; `UseExceptionHandler` + ProblemDetails; `DateTime.Now` → `UtcNow`. | Loglar Render'da seviyeli; 500'ler tek biçimde |
 | **PR-19** BE | `GameConfigController` mock'u, `FluentMeService`, Dapper paketi, csproj'daki yorum bloğu, `Dtos.cs`, `Models/FluentMe` kullanılmayanlar. | Build temiz, davranış aynı |
@@ -268,6 +271,7 @@ Hesap sahibinin yapacakları:
 | **PR-21** BE | Değerlendirme sonrası Cloudinary'deki kaydı sil (veya private/authenticated teslimata geç); `players`'a `guardian_consent_at` alanı; KVKK aydınlatma metni için endpoint. |
 | **PR-22** UN | Ayarlar → "Terapistime bağlan" ekranı: davet kodu gir → `/api/invitations/redeem`. |
 | **PR-23+** | Her yeni oyun için ayrı PR: içerik (asset JSON) + Unity modülü + oturum kaydı. Sıra önerisi: Kelime S2 (Üçlü Eşleştir) → Cümle S1. |
+| **Karar** | Kestrel portu: `appsettings.json` 5194'ü sabitliyor, Dockerfile'daki `ASPNETCORE_URLS=:10000`'i eziyor; Render portu otomatik bulduğu için çalışıyor. Kestrel bloğu yalnızca Development'a taşınmalı mı? (BE#2 review #4) |
 | **Karar** | `ş/s`, `ç/c`, `ı/i` ayrımı puanlamada korunacak mı? (ARCHITECTURE §11-6) — karar sonrası PR-16 testleriyle birlikte uygulanır. |
 
 ---
@@ -278,3 +282,4 @@ Hesap sahibinin yapacakları:
 |---|---|
 | 2026-10-16 | İlk sürüm (PR-00). |
 | 2026-10-16 | ADIM 0 ekip kararıyla ertelendi. Repolar o tarihte public durumdaydı; sırlar yenilenene kadar risk açık kabul edildi. |
+| 2026-10-16 | PR akışına **CI + Claude review** adımı eklendi; PR-17 (CI) öne çekildi. PR-01 Render erişimi olmadığı için draft'a alındı. |
