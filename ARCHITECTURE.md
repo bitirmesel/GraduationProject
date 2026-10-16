@@ -5,7 +5,7 @@
 > Yeni bir işe başlamadan önce ilgili bölümü okuyun; mimariyi değiştiren her PR'da bu dosyayı da güncelleyin.
 >
 > **Son inceleme:** 2026-10-16 · **İncelenen sürümler:** `Fonem@1ed3f6d`, `advisor_panel_app@6f90bbb`, `BackendApi@4b0ccc5`, `GraduationProject@873c283`
-> **Son güncelleme:** 2026-10-16 — `BackendApi@ef4c808` (PR-16), `Fonem@5cec09b` (PR-09), `advisor_panel_app@5274811` (PR-10)
+> **Son güncelleme:** 2026-10-16 — `BackendApi@d9f3992` (PR-29), `Fonem@3292474` (PR-23a), `advisor_panel_app@3f2738c` (PR-23b)
 >
 > İş planı ve PR sırası için: **[ROADMAP.md](ROADMAP.md)**
 
@@ -101,7 +101,7 @@ flowchart LR
 | Base URL | `--dart-define=API_BASE_URL`, varsayılan `8nfn` | sabit `pj6y` (`api_config.dart`) | — | Inspector, `8nfn` |
 | App id | `com.example.flutter_demo` ⚠️ | `com.example.advisor_panel_app` ⚠️ | — | `com.DefaultCompany.ParroTalk` |
 | Test | 21 birim testi (PR-04, PR-07) | 9 birim testi (PR-05, PR-10) | 20 birim testi (PR-16) | Yok |
-| CI | ✅ analyze + test (PR-20) | ✅ analyze + test (PR-20) | ✅ GitHub Actions (build + test + docker) | Yok |
+| CI | ✅ analyze (hata + uyarı fatal) + test | ✅ analyze (hata + uyarı fatal) + test | ✅ GitHub Actions (build + test + docker) | Yok |
 
 Ekip: 3 katkıcı. Fonem'de ~95 commit (2026-04 → 2026-06), panelde ~20 commit, backend'de ~110 commit.
 
@@ -186,7 +186,7 @@ flowchart TD
 
 ### 4.6 Ölü / sabit kodlu
 
-- Ölü: `services/api_service.dart`, `FluentMeService.checkPronunciation` + FluentMe parse (~200 satır), `profile/pages/{personal_info,progress_stats,privacy_kvkk}_page.dart`, `models/{models,user_model}.dart`, `db/{app_db_context,therapist_client}.dart`, terapist tarafı davet/bağlantı metotları.
+- Ölü: ~~`api_service.dart`, `profile/pages/*`, `models/{models,user_model}.dart`, `db/{app_db_context,therapist_client}.dart`~~ → ✅ PR-23a'da silindi. Kalan: `FluentMeService.checkPronunciation` + FluentMe parse (~200 satır), terapist tarafı davet/bağlantı metotları.
 - Sabit: harf ID eşlemesi, oyun ID'leri, açık harfler, bildirimler sayfasının **örnek veriyle açılması** (`notifications_page.dart:35`), bildirim ayarları yalnızca yerel.
 
 ---
@@ -237,7 +237,7 @@ BackendApi/
 ├── Endpoints/*.cs             Minimal API grupları (iş mantığının %90'ı, doğrudan DbContext ile)
 ├── Controllers/               GameConfigController, PronunciationController (MVC)
 ├── Services/                  CloudinaryService, WhisperService, PronunciationScoringService,
-│                              GameService (+ Repository/GameRepository), FluentMeService (kullanılmıyor)
+│                              GameService (+ Repository/GameRepository)
 ├── Models/Db/                 EF Core entity'leri + AppDbContext
 ├── Models/Auth, Models/Game   İstek/yanıt modelleri
 ├── Dtos/                      DTO'lar (Game, Player, Tasks, Therapist, Pronunciation)
@@ -340,7 +340,7 @@ erDiagram
 
 - Oyuna özel ek alanlar olabilir (ör. Mesleği Bul: `workplaceKey`, `workplaceFile`).
 - `GET /api/asset-sets?gameId&letterId&includeJson=true` Fonem'in ana kaynağıdır (`assetJson` alanı).
-- `GET /api/gameconfig/{gameId}/{letterId}` JSON'ı ham metin olarak döner; `gameId == 1` için **harften bağımsız sabit mock** döner. Fonem önce bunu deniyor, olmazsa `asset-sets`'e düşüyor (oyun başına çift çağrı).
+- `GET /api/gameconfig/{gameId}/{letterId}` `asset_json`'ı `application/json` olarak döner (PR-22; önceden `text/plain` ve `gameId == 1` için sabit mock). Fonem kelime oyunları (4-7) bunu kullanır; başarısız olursa `asset-sets`'e düşer.
 - Cloudinary klasör düzeni: `graduationProject/letters/{HARF}/{tip}/{oyun}/`, yüklenen sesler `game_audio/`, telaffuz kayıtları `pronunciation/`.
 
 ### 6.6 Endpoint kataloğu
@@ -393,7 +393,7 @@ Hiçbiri kimlik doğrulama istemez. **FN** = Fonem, **PN** = terapist paneli, **
 | Metot | Yol | Tüketici | Not |
 |---|---|---|---|
 | GET | `/api/lookup/letters`, `/games`, `/gametypes`, `/difficultylevels` | PN | |
-| GET | `/api/gameconfig/{gameId}/{letterId}` | FN, UN | `gameId == 1` sabit mock |
+| GET | `/api/gameconfig/{gameId}/{letterId}` | FN, UN | Mock kaldırıldı (PR-22) |
 | GET | `/api/asset-sets`, `/api/tasks/{id}/asset-set` | FN | |
 | POST/PUT | `/api/assets/create`, `/bulk-create`, `/{g}/{l}/json` | Admin | |
 | POST | `/api/media/upload`, `/upload-audio` | Admin | |
@@ -531,7 +531,7 @@ Görev yanıtında oyun tipi ve zorluk olmadığı için Fonem oyunu adla eşle�
 | FN | `GET /api/players/{id}/tasks` | ✅ oyun tipi + zorluk (PR-06); ⏳ terapist PR-06b | Yönlendirme düzeldi (PR-07); profil kartındaki terapist PR-06b ile dolacak |
 | FN | `POST /api/notifications/{id}/read` | ✅ PR-09 (önceden PATCH → 405) | — |
 | FN | `GET /api/students/{id}` | ✅ PR-09 (önceden önce var olmayan `/api/players/{id}` deneniyordu) | — |
-| FN | `GET /api/gameconfig/{g}/{l}` | ✅ `text/plain` ama geçerli JSON; `ApiClient` çözüyor (kelime oyunları 4-7) | `gameId = 1` mock'una Fonem ulaşmıyor; silinmesi PR-22 |
+| FN | `GET /api/gameconfig/{g}/{l}` | ✅ `text/plain` ama geçerli JSON; `ApiClient` çözüyor (kelime oyunları 4-7) | Mock kaldırıldı, `application/json` (PR-22) |
 | FN | `check-syllable` web (`webm`) | ❌ backend yalnızca WAV | Web'de değerlendirme 500 |
 | FN | `check-syllable` mobil | ✅ | — |
 | FN | `gamesessions/start` + `complete`, inbox, redeem, asset-sets | ✅ | — |
@@ -555,6 +555,8 @@ Görev yanıtında oyun tipi ve zorluk olmadığı için Fonem oyunu adla eşle�
 9. KVKK: çocuk ses kayıtları Cloudinary `pronunciation/` klasöründe süresiz ve herkese açık URL ile tutuluyor; kayıtlar OpenAI'ye (ve eski hatta FluentMe'ye) gönderiliyor. Fonem'deki KVKK onayı yalnızca cihazda saklanıyor.
 10. Android release derlemeleri debug anahtarıyla imzalanıyor; app id'ler `com.example.*`.
 
+11. ~~Npgsql 8.0.2'de yüksek önemli SQL injection açığı (CVE-2024-32655)~~ → ✅ PR-29 (8.0.9). ⚠️ `8nfn` deploy etmediği için orada hâlâ açık (B1).
+
 ### P1 — İşlevsel kırıklar
 
 1. ~~Panelden terapist kaydı imkânsız~~ → ✅ PR-10.
@@ -574,7 +576,7 @@ Görev yanıtında oyun tipi ve zorluk olmadığı için Fonem oyunu adla eşle�
 - Testler başladı (Fonem 21, panel 9, backend 20) ve üç repoda da CI'da çalışıyor. Ekran/entegrasyon testi yok.
 - Panel: servisler birbirini tekrar ediyor (`ReportService` ↔ diğerleri), `therapistId` okuma kodu ~12 kez kopyalanmış, N+1 istek (öğrenci seçimi), `mounted` kontrolsüz `setState`, dispose edilmeyen controller'lar, ~55 deprecated API kullanımı, `pubspec.lock` gitignore'da.
 - Fonem: hece oyunu kayıt ve oturum mantığını ortak mixin'den kopyalamış; iki ayrı session store; çok sayıda ölü dosya.
-- Backend: `Console.WriteLine` loglama, `DateTime.Now`/`UtcNow` karışık, endpoint'lerde tekrarlanan doğrulama, kullanılmayan `Dapper`/`FluentMeService`.
+- Backend: `Console.WriteLine` loglama, `DateTime.Now`/`UtcNow` karışık, endpoint'lerde tekrarlanan doğrulama. (Ölü kod PR-22'de temizlendi; `Models/FluentMe` PR-01 sonrasına → B29.)
 
 ---
 
