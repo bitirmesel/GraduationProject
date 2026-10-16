@@ -79,9 +79,9 @@ Faz 2, tez demosunda "çocuk oynar → terapist görür" akışını sorunsuz ha
 | PR-06 | 2 | BE | Görev yanıtına oyun tipi ve zorluk ekle | **P1** | — | ✅ [BE#5](https://github.com/bitirmesel/BackendApi/pull/5) |
 | PR-06b | 2 | BE | Görev yanıtına terapist bilgisi ekle | P1 | ⛔ PR-07'li Fonem cihazlarda | 🟨 [BE#6](https://github.com/bitirmesel/BackendApi/pull/6) draft |
 | PR-07 | 2 | FN | Görev yönlendirmesi: oyun ID/tip/zorlukla; Story/Fill Gap; inbox rozeti | **P1** | PR-06 | ✅ [FN#19](https://github.com/bitirmesel/Fonem/pull/19) |
-| PR-08 | 2 | FN | Cümle oyunu varlıklarını paketle; tek geçme eşiği (`passed`); `http` bağımlılığı | **P1** | — | ⬜ |
-| PR-09 | 2 | FN | Sözleşme düzeltmeleri: bildirim okundu POST, profil yolu, gameconfig çift çağrı | P1 | — | ⬜ |
-| PR-10 | 2 | PN | Terapist kaydını düzelt (+ şifre kırpma, doğrulama) | **P1** | — | ⬜ |
+| PR-08 | 2 | FN | Cümle Kur videolarını paketle; `http` bağımlılığı | **P1** | — | ✅ [FN#20](https://github.com/bitirmesel/Fonem/pull/20) |
+| PR-09 | 2 | FN | Sözleşme düzeltmeleri: bildirim okundu POST, profil yolu | P1 | — | ✅ [FN#21](https://github.com/bitirmesel/Fonem/pull/21) |
+| PR-10 | 2 | PN | Terapist kaydını düzelt (+ doğrulama, kullanıcı adıyla giriş) | **P1** | — | ✅ [PN#3](https://github.com/bitirmesel/advisor_panel_app/pull/3) |
 | PR-11 | 2 | PN | Grafik gün etiketleri / saat dilimi; sahte "canlı seans" ve "şifremi unuttum" | P1 | — | ⬜ |
 | PR-12 | 2 | BE+FN+PN | Tek backend servisi + `8nfn` deploy ayarı | **P0** ⬆️ | 🔑 karar + Render | ⏸️ Render erişimi bekliyor |
 | PR-13 | 3 | BE | Şifre hash'leme (şeffaf geçiş) | P1 | PR-02 | ⬜ |
@@ -89,15 +89,15 @@ Faz 2, tez demosunda "çocuk oynar → terapist görür" akışını sorunsuz ha
 | PR-18 | 3 | FN | Token'ı güvenli sakla ve her istekte gönder | P1 | PR-14 | ⬜ |
 | PR-19 | 3 | PN | Token'ı güvenli sakla ve **her** istekte gönder | P1 | PR-14 | ⬜ |
 | PR-15 | 3 | BE | Yetkilendirme + sahiplik + DTO'lar + Swagger | P1 | PR-18, PR-19 | ⬜ |
-| PR-16 | 4 | BE | Test projesi + `PronunciationScoringService` testleri | P2 | — | ⬜ |
-| PR-20 | 4 | FN+PN | Flutter CI (`analyze` + `test`), bozuk şablon testlerini gerçek testlerle değiştir | P2 | — | ⬜ |
+| PR-16 | 4 | BE | Test projesi + `PronunciationScoringService` testleri | P2 | — | ✅ [BE#8](https://github.com/bitirmesel/BackendApi/pull/8) (20 test, CI'da) |
+| PR-20 | 4 | FN+PN | Flutter CI (`analyze` + `test`), bozuk şablon testlerini gerçek testlerle değiştir | P2 | — | ✅ [FN#22](https://github.com/bitirmesel/Fonem/pull/22) · [PN#4](https://github.com/bitirmesel/advisor_panel_app/pull/4) (CI'da 21 + 9 test) |
 | PR-21 | 4 | BE | `ILogger`, global hata yakalama, UTC tutarlılığı | P2 | PR-02 | ⬜ |
 | PR-22 | 4 | BE | Ölü kod temizliği (gameconfig mock, FluentMeService, Dapper, `Dtos.cs`) | P2 | PR-09 | ⬜ |
 | PR-23 | 4 | FN+PN | Ölü kod/paket temizliği, gerçek app id, release imzası, repo hijyeni | P2 | — | ⬜ |
 | PR-24 | 5 | BE+FN | Ses kaydı saklama politikası + KVKK onayının backend'de tutulması | P1 | PR-15 | ⬜ |
 | PR-25+ | 5 | FN+BE | Yeni oyunlar ve gerçek içerik (Cümle S1-S3, "Yakında" oyunlar) | P2 | PR-07 | ⬜ |
 | PR-26 | 5 | UN | Unity reposunu emekliye ayır (README notu + GitHub arşiv) | P2 | doküman yeri kararı | ⬜ |
-| PR-27 | 2 | BE | `GET /api/players` 500 hatası (NULL alanlı oyuncu kaydı) | P1 | — | ⬜ |
+| PR-27 | 2 | BE | `GET /api/players` 500 hatası (NULL alanlı oyuncu kaydı) | P1 | — | ✅ [BE#7](https://github.com/bitirmesel/BackendApi/pull/7) (`pj6y`'de doğrulandı) |
 | PR-28 | 2 | PN+BE | İstemcisi olmayan oyunlar (Fill Gap) görev olarak atanamasın | P1 | — | ⬜ |
 | — | — | UN | ~~Unity: telaffuz DTO, oturum kaydı, LevelMap, hece oyunu, küçük düzeltmeler, token, davet ekranı~~ | — | — | 🗑️ Unity emekli (2026-10-16) |
 
@@ -191,14 +191,18 @@ Kod hazır, review'dan geçti. **Merge ön koşulu 🔑:** Render'da **iki servi
 
 **Kabul:** Panelden atanan her oyun tipi Fonem'de doğru oyunu ve seviyeyi açıyor; tamamlanınca panelde COMPLETED görünüyor.
 
-### PR-08 · FN · Cümle oyunu ve geçme eşiği
+### PR-08 · FN · Cümle oyunu ve geçme eşiği — ✅ FN#20 (kapsam daraldı)
+
+> Yapılan: iki MP4 `pubspec.yaml`'a eklendi (`flutter build bundle` ile doğrulandı), `http`/`http_parser` doğrudan bağımlılık. **Yapılmayan (bilinçli):** madde 3 (tek eşik) → oyunlar farklı eşikleri bilerek kullanıyor gibi; zorluğu değiştirir → **Backlog B22 (karar)**. Madde 4 (Cümle sekmesi kilidi) → kodda bilinçli işaretli ("henüz hazır değil"), hata değil.
 
 1. `pubspec.yaml`'a `assets/manavgamebackground.mp4` ve `assets/manav_video.mp4` eklensin; kullanılmayan gölge PNG'leri kontrol edilsin.
 2. `http` ve `http_parser` doğrudan bağımlılık olarak eklensin.
 3. Geçme kararı tek yerde: tüm oyunlar backend'in `passed` alanını kullansın (istemcideki 70/80/85 eşikleri kaldırılsın).
 4. Cümle sekmesi kilidi (`exercises_page.dart:31`) mantığı düzeltilsin.
 
-### PR-09 · FN · Sözleşme düzeltmeleri
+### PR-09 · FN · Sözleşme düzeltmeleri — ✅ FN#21
+
+> Yapılan: madde 1 ve 2 (canlıda yan etkisiz isteklerle doğrulandı: eski yollar 405). **Madde 3 geçersizdi:** `gameconfig` `text/plain` dönse de içerik geçerli JSON ve `ApiClient` çözüyor; kelime oyunları için ilk istek başarılı, çift çağrı yok. Madde 4 (web webm) → Backlog B17.
 
 1. `notifications_repository.dart`: `PATCH /api/notifications/{id}/read` → **POST**.
 2. `player_repository.dart`: önce olmayan `GET /api/players/{id}`'yi denemesin; doğrudan `/api/students/{id}`.
@@ -289,6 +293,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | 2026-10-16 | ADIM 0 ekip kararıyla ertelendi. Repolar o tarihte public durumdaydı; sırlar yenilenene kadar risk açık kabul edildi. |
 | 2026-10-16 | PR akışına **CI + Claude review** adımı eklendi; PR-17 (CI) öne çekildi. PR-01 Render erişimi olmadığı için draft'a alındı. |
 | 2026-10-16 | PR-00 ve PR-17 merge edildi; PR-02 açıldı (Swagger maddesi PR-15'e taşındı). |
+| 2026-10-16 | Otonom tur: PR-27 (BE#7), PR-08 (FN#20), PR-09 (FN#21), PR-10 (PN#3), PR-16 (BE#8), PR-20 (FN#22, PN#4) merge edildi. PR-08 kapsamı daraldı (eşik → karar B22), PR-09'daki gameconfig maddesi geçersiz çıktı. Backlog B22-B27. |
 | 2026-10-16 | PR-05 (PN#2), PR-06 (BE#5), PR-07 (FN#19) merge edildi; PR-06b (BE#6) draft. PR dışı bulgular §10 Backlog'da toplandı; yeni kartlar PR-27, PR-28. |
 | 2026-10-16 | PR-02 (BE#4) ve PR-04 (FN#18) merge edildi. `8nfn` servisinin `main`'i deploy etmediği tespit edildi → PR-12 P0'a yükseltildi. |
 | 2026-10-16 | **Fonem (Flutter çocuk) ve advisor_panel_app (Flutter terapist) incelendi. Karar: Fonem esas, Unity emekli.** Unity kartları iptal edildi; Faz 1-5 Fonem ve panel kartlarıyla yeniden düzenlendi (PR-04…PR-12, PR-18…PR-26). İki Render servisi tespit edildi (PR-12). BE#2 review'undaki "Unity düzeltmesi PR-04" notu geçersizdir; ilgili konu Fonem'de sorun değil. |
@@ -306,7 +311,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 |---|---|---|---|---|
 | B1 | **`8nfn` servisi `main`'i deploy etmiyor**; Fonem eski backend'le konuşuyor (şifre alanı hâlâ dönüyor) | PR-02 sonrası canlı kontrol | 🔴 | PR-12 · 🔑 Render erişimi |
 | B2 | Repolar public, sırlar git geçmişinde | İlk inceleme | 🔴 | ADIM 0 (ertelendi) + PR-01 (draft) |
-| B3 | `GET /api/players` **iki serviste de 500** | PR-06 canlı veri kontrolü | 🟠 | **PR-27** (yeni) |
+| B3 | `GET /api/players` **iki serviste de 500** | PR-06 canlı veri kontrolü | 🟠 | ✅ PR-27 (`pj6y`); `8nfn` → B1 |
 | B4 | `/api/therapists/{id}/notifications` terapistin **tüm öğrencilerinin** olaylarını çocuk adlarıyla, kimlik doğrulamasız dönüyor | PR-06 review | 🟠 | PR-15 (yalnızca terapist token'ı). Fonem'deki kullanımı PR-07'de kaldırıldı ✅ |
 | B5 | Fill Gap (ID 9) panelden atanabiliyor ama Fonem'de oyunu yok → görev hiç tamamlanamıyor | PR-07 review | 🟠 | **PR-28** (yeni) |
 | B6 | PR-06b, eski Fonem sürümleri yüzünden yalnızca cihazlar güncellendikten sonra merge edilebilir | PR-06b | 🟠 | PR-06b merge koşulu · 🔑 cihaz güncellemesi |
@@ -325,8 +330,16 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | B19 | SDK kaynaklı `ArgumentException` mesajı 400 olarak dönebilir | PR-02 review | 🟢 | ✅ Bilinçli karar, değişiklik yok |
 | B20 | Fonem `difficultyLevelId`'yi seviye numarası olarak kullanıyordu | PR-06 review | 🟢 | ✅ PR-07'de çözüldü |
 | B21 | Fonem profil kartı terapisti hiç gösteremiyor (`therapistId = 0`) | PR-06b hazırlığı | 🟢 | PR-06b |
+| B22 | **Geçme eşikleri tutarsız:** Hafıza/Gölge 70; Üçlü/Meslek/Hikâye 80; Hece 85 istiyor ama backend `passed` (70) ile geçiyor. Tek eşik bazı oyunları kolaylaştırır | PR-08 | 🟡 | **Karar** (terapötik) · sonra küçük FN PR'ı |
+| B23 | E-posta benzersizliği ve giriş **büyük/küçük harfe duyarlı** (`t.Email == req.Email`): "Ahmet@x.com" ve "ahmet@x.com" iki hesap | PR-10 review | 🟡 | Kart yok → BE: yazarken normalize + case-insensitive karşılaştırma (mevcut hesaplar için geçiş planıyla) |
+| B24 | Terapistin **şifresiz** oluşturduğu öğrenciler hiç giriş yapamıyor | PR-27 | 🟡 | **Karar:** öğrenci oluştururken şifre zorunlu mu, yalnızca davet kodu mu? |
+| B25 | Şema EF dışında kurulduğu için 15 string alan daha modelde NOT NULL ama DB'de NULL olabilir (aynı hata sınıfı) | PR-27 review | 🟡 | PR-03 (şema dökümü + nullability hizalama) |
+| B26 | `asset_sets.asset_json` modelde nullable'dı ama migration'ı yoktu (snapshot kopukluğu) | PR-27 | 🟢 | ✅ PR-27 migration'ında kapandı |
+| B27 | Panelde `pubspec.lock` gitignore'da → CI ve ekip farklı paket sürümleriyle derliyor | PR-20 | 🟢 | PR-23 |
 
-### PR-27 · BE · `GET /api/players` 500 hatası
+### PR-27 · BE · `GET /api/players` 500 hatası — ✅ BE#7
+
+> Kök neden: `POST /api/students` e-posta/şifreyi NULL yazabiliyor, model NOT NULL sanıyordu → oyuncu 6 ve 10 okunamıyordu (profil, PATCH, giriş de etkileniyordu). `Player.Email/Password` → `string?` + `DROP NOT NULL` migration'ı. SQLite'ta yeniden üretilip doğrulandı; canlıda (`pj6y`) `/api/players` ve `/api/students/6` artık 200. `8nfn` hâlâ eski sürümde (B1).
 
 1. Hatanın kaynağını bul (`ErrorLog` ile loglanan hata kodu veya yerel dev DB). Muhtemel neden: `players.name`/`email` NULL, entity'de NULL olamayan `string`.
 2. Projeksiyonda NULL'a dayanıklı ol (`p.Name ?? ""`) ya da veriyi düzelt + kolona `NOT NULL` kısıtı.
