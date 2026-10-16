@@ -72,17 +72,17 @@ Faz 2, tez demosunda "çocuk oynar → terapist görür" akışını sorunsuz ha
 | PR-00 | 0 | UN+BE | Mimari doküman, yol haritası, PR şablonu | P0 | — | ✅ [UN#1](https://github.com/bitirmesel/GraduationProject/pull/1) · [BE#1](https://github.com/bitirmesel/BackendApi/pull/1) |
 | PR-17 | 0 | BE | GitHub Actions: build + docker (test adımı PR-16 ile) | P1 | — | ✅ [BE#3](https://github.com/bitirmesel/BackendApi/pull/3) |
 | PR-01 | 1 | BE | Sırları koddan çıkar, ortam değişkenlerine taşı | **P0** | 🔑 Render env (iki servis) | ⏸️ [BE#2](https://github.com/bitirmesel/BackendApi/pull/2) draft — Render erişimi bekliyor |
-| PR-02 | 1 | BE | Şifre alanı ve hata detayı sızıntısını durdur | **P0** | — | 🟨 [BE#4](https://github.com/bitirmesel/BackendApi/pull/4) |
+| PR-02 | 1 | BE | Şifre alanı ve hata detayı sızıntısını durdur | **P0** | — | ✅ [BE#4](https://github.com/bitirmesel/BackendApi/pull/4) — `pj6y` yayında; ⚠️ `8nfn` deploy etmedi (PR-12) |
 | PR-03 | 1 | BE | Yerel geliştirme veritabanı (docker-compose + şema + seed) | P0 | — | ⬜ |
-| PR-04 | 1 | FN | İstek/yanıt gövdelerini loglamayı kaldır (şifre, kişisel veri) | **P0** | — | ⬜ |
-| PR-05 | 1 | PN | Şifreyi cihazda saklama, çıkışta oturumu temizle | **P0** | — | ⬜ |
+| PR-04 | 1 | FN | İstek/yanıt gövdelerini loglamayı kaldır (şifre, kişisel veri) | **P0** | — | ✅ [FN#18](https://github.com/bitirmesel/Fonem/pull/18) |
+| PR-05 | 1 | PN | Şifreyi cihazda saklama, çıkışta oturumu temizle | **P0** | — | 🔧 yapılıyor |
 | PR-06 | 2 | BE | Görev yanıtına `therapistId`, oyun tipi, zorluk ekle | **P1** | — | ⬜ |
 | PR-07 | 2 | FN | Görev yönlendirmesi: oyun ID/tip/zorlukla; Story/Fill Gap; inbox rozeti | **P1** | PR-06 | ⬜ |
 | PR-08 | 2 | FN | Cümle oyunu varlıklarını paketle; tek geçme eşiği (`passed`); `http` bağımlılığı | **P1** | — | ⬜ |
 | PR-09 | 2 | FN | Sözleşme düzeltmeleri: bildirim okundu POST, profil yolu, gameconfig çift çağrı | P1 | — | ⬜ |
 | PR-10 | 2 | PN | Terapist kaydını düzelt (+ şifre kırpma, doğrulama) | **P1** | — | ⬜ |
 | PR-11 | 2 | PN | Grafik gün etiketleri / saat dilimi; sahte "canlı seans" ve "şifremi unuttum" | P1 | — | ⬜ |
-| PR-12 | 2 | BE+FN+PN | Tek backend servisi | P1 | 🔑 karar + Render | ⏸️ karar bekliyor |
+| PR-12 | 2 | BE+FN+PN | Tek backend servisi + `8nfn` deploy ayarı | **P0** ⬆️ | 🔑 karar + Render | ⏸️ Render erişimi bekliyor |
 | PR-13 | 3 | BE | Şifre hash'leme (şeffaf geçiş) | P1 | PR-02 | ⬜ |
 | PR-14 | 3 | BE | Oyuncu JWT'si + rol claim'leri | P1 | PR-13 | ⬜ |
 | PR-18 | 3 | FN | Token'ı güvenli sakla ve her istekte gönder | P1 | PR-14 | ⬜ |
@@ -126,7 +126,9 @@ Doküman + PR şablonları ve backend CI (`dotnet build` + `docker build`) `main
 
 Kod hazır, review'dan geçti. **Merge ön koşulu 🔑:** Render'da **iki servise de** `ConnectionStrings__Pg`, `Jwt__Key`, `FluentMe__User`, `FluentMe__Password`, `FluentMe__ApiKey`. Şifre yenileme gerekmez; mevcut değerler girilebilir. Ayrıntılar PR açıklamasında.
 
-### PR-02 · BE · Şifre alanı ve hata detayı sızıntısı — 🟨 BE#4
+### PR-02 · BE · Şifre alanı ve hata detayı sızıntısı — ✅ BE#4
+
+> Review'da ek olarak: FluentMe post hatasında ham yanıt sızıntısı ve boş `catch` blokları (accept/reject/redeem) düzeltildi. **Canlı durum:** `pj6y` yayına aldı; `8nfn` almadı (bkz. PR-12).
 
 1. `Player.Password` ve `Therapist.Password` → `[JsonIgnore]`. Şifre hiçbir JSON yanıtına yazılmaz; diğer alan adları aynı kalır. Fonem ve panel uyumluluğu doğrulandı. Tam DTO'ya geçiş PR-15'te.
 2. `GET /api/students` stack trace dönüşü kaldırıldı.
@@ -143,7 +145,9 @@ Kod hazır, review'dan geçti. **Merge ön koşulu 🔑:** Render'da **iki servi
 
 **Kabul:** `docker compose up -d` + `dotnet run` ile prod'a dokunmadan Swagger ve Fonem çalışıyor.
 
-### PR-04 · FN · Loglarda şifre ve kişisel veri olmasın
+### PR-04 · FN · Loglarda şifre ve kişisel veri olmasın — ✅ FN#18
+
+> Review sonrası kapsam genişledi: 13 catch bloğu `logError`'a yönlendirildi, `FluentMeService` artık gövdeli `Exception` yerine `ApiHttpException` fırlatıyor. Release'de log = tip + HTTP durum kodu. Cihazda `adb logcat` kontrolü yapılmadı.
 
 1. `services/api_client.dart`: istek ve yanıt **gövdelerinin** `debugPrint`'ini kaldır. Yalnızca yöntem, yol ve durum kodu loglansın; o da yalnızca `kDebugMode`'da.
 2. Diğer dosyalardaki kişisel veri logları (profil, giriş) temizlenir.
@@ -209,7 +213,9 @@ Kod hazır, review'dan geçti. **Merge ön koşulu 🔑:** Render'da **iki servi
 4. "Şifremi unuttum": sahte başarı yerine "Terapistinize/yöneticiye başvurun" bilgisi (gerçek akış ayrı iş).
 5. `lastActive` boşken "3 dk önce" yerine "—".
 
-### PR-12 · BE+FN+PN · Tek backend servisi — ⏸️ karar bekliyor
+### PR-12 · BE+FN+PN · Tek backend servisi — ⏸️ Render erişimi bekliyor
+
+> ⬆️ **Öncelik P0'a yükseldi (2026-10-16):** PR-02 merge edildikten 30+ dakika sonra `pj6y` şifre alanını gizliyor, **Fonem'in bağlandığı `8nfn` hâlâ şifre dönüyor** → `8nfn` `main`'den otomatik deploy edilmiyor. Render'da ilk iş: `8nfn`'in bağlı olduğu repo/dal ve auto-deploy ayarını kontrol et, manuel deploy et. İstemciyi `pj6y`'ye çevirmek tek başına yetmez; `8nfn` açık kaldıkça doğrudan erişilebilir.
 
 Karar sonrası: istemcilerin base URL'i tek servise çevrilir, diğer servis kapatılır. FN'de `--dart-define` zaten var; PN'de `api_config.dart` dart-define destekleyecek şekilde değişir.
 
@@ -273,4 +279,5 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | 2026-10-16 | ADIM 0 ekip kararıyla ertelendi. Repolar o tarihte public durumdaydı; sırlar yenilenene kadar risk açık kabul edildi. |
 | 2026-10-16 | PR akışına **CI + Claude review** adımı eklendi; PR-17 (CI) öne çekildi. PR-01 Render erişimi olmadığı için draft'a alındı. |
 | 2026-10-16 | PR-00 ve PR-17 merge edildi; PR-02 açıldı (Swagger maddesi PR-15'e taşındı). |
+| 2026-10-16 | PR-02 (BE#4) ve PR-04 (FN#18) merge edildi. `8nfn` servisinin `main`'i deploy etmediği tespit edildi → PR-12 P0'a yükseltildi. |
 | 2026-10-16 | **Fonem (Flutter çocuk) ve advisor_panel_app (Flutter terapist) incelendi. Karar: Fonem esas, Unity emekli.** Unity kartları iptal edildi; Faz 1-5 Fonem ve panel kartlarıyla yeniden düzenlendi (PR-04…PR-12, PR-18…PR-26). İki Render servisi tespit edildi (PR-12). BE#2 review'undaki "Unity düzeltmesi PR-04" notu geçersizdir; ilgili konu Fonem'de sorun değil. |

@@ -80,6 +80,7 @@ flowchart LR
 
 - Tüm iş mantığı **tek bir monolit backend**'dedir; istemciler "ince"dir.
 - **Render'da aynı koddan iki servis çalışıyor:** Fonem ve Unity `backendapi-8nfn`'e, terapist paneli `backendapi-pj6y`'ye bağlı. İkisi de aynı 54 endpoint'i sunuyor, lookup verileri birebir aynı (büyük olasılıkla aynı DB). Hangisinin esas olacağı açık soru ([§12](#12-açık-sorular-ve-kararlar)). Ortam değişkeni gerektiren her değişiklik **iki servise de** uygulanmalı.
+- ⚠️ **`8nfn` `main`'den otomatik deploy edilmiyor:** PR-02 merge edildikten sonra `pj6y` güncellendi, `8nfn` güncellenmedi (2026-10-16). Fonem şu an eski backend sürümüyle konuşuyor.
 - Medya (görsel/ses) **Cloudinary**'de durur; veritabanında yalnızca URL parçaları (AssetSet JSON içinde) tutulur.
 - Fonem'in tüm oyunları telaffuzu **Whisper** hattıyla (`check-syllable`) değerlendirir; FluentMe hattı (`check`) şu an yalnızca emekli Unity tarafından kullanılıyordu.
 - Render ücretsiz katmanı soğuk başlatma yapar; ilk istek 30-60 sn sürebilir.
@@ -359,10 +360,10 @@ Hiçbiri kimlik doğrulama istemez. **FN** = Fonem, **PN** = terapist paneli, **
 | Metot | Yol | Tüketici | Not |
 |---|---|---|---|
 | GET/POST | `/api/students?therapistId=` | PN | Liste / yeni danışan |
-| GET | `/api/students/{id}` | FN | ⚠️ şifre dahil döner → PR-02 |
+| GET | `/api/students/{id}` | FN | Şifre alanı gizli (PR-02; ⚠️ `8nfn`'de henüz yayında değil) |
 | PATCH | `/api/students/{id}`, `/api/players/{id}` | FN | Kısmi güncelleme |
 | GET | `/api/players`, `/api/players/{id}/therapists` | FN (ikincisi) | İlki debug |
-| GET/PUT | `/api/therapists/{id}`, `/api/therapists/{id}/password` | PN, FN (GET) | ⚠️ GET şifre dahil döner → PR-02 |
+| GET/PUT | `/api/therapists/{id}`, `/api/therapists/{id}/password` | PN, FN (GET) | Şifre alanı gizli (PR-02; ⚠️ `8nfn`'de henüz yayında değil) |
 | GET | `/api/dashboard/summary`, `/api/students/{id}/stats` | PN (ilki) | `stats.weeklyProgress` sabit dummy |
 
 **Davet ve bağlantı**
@@ -459,7 +460,7 @@ dotnet ef migrations add <Isim> --project DktApi.csproj
 ### 6.9 Dağıtım ve yapılandırma
 
 - `Dockerfile` çok aşamalı (sdk:8.0 → aspnet:8.0), `ASPNETCORE_URLS=http://+:10000`. ⚠️ `appsettings.json` içindeki Kestrel 5194 tanımı bunu eziyor; Render portu otomatik bulduğu için çalışıyor.
-- Render, `main`'e push ile **iki servisi** de yeniden deploy ediyor (varsayım; Render erişimiyle doğrulanacak).
+- Render: `pj6y` `main`'e push ile yeniden deploy ediliyor (doğrulandı); **`8nfn` edilmiyor** (doğrulandı, 2026-10-16) → PR-12.
 - CI: her PR'da `dotnet build` + `docker build`.
 
 | Ortam değişkeni | Kullanan | Durum |
@@ -544,9 +545,8 @@ Görev yanıtında oyun tipi ve zorluk olmadığı için Fonem oyunu adla eşle�
 1. **Sırlar git geçmişinde ve repolar public.** Production PostgreSQL şifresi, FluentMe bilgileri ve JWT anahtarı herkese açık. → PR-01 (koddan çıkarma) + ADIM 0 (yenileme, ertelendi).
 2. **Kimlik doğrulama yok.** Hiçbir endpoint korunmuyor; istemciler kimliği `therapistId`/`playerId` parametresiyle kendileri bildiriyor (IDOR).
 3. **Şifreler düz metin** (therapist + player). Tez raporu BCrypt ve RBAC olduğunu söylüyor; gerçekte yok. Panelin gizlilik metni de aynı yanlış iddiayı içeriyor.
-4. **Şifre içeren yanıtlar** (`/students/{id}`, `/therapists/{id}`) → PR-02.
-5. **Hata yanıtlarında iç detay** (stack trace, dış servis yanıtları) → PR-02.
-6. **Fonem `ApiClient` tüm istek/yanıt gövdelerini `debugPrint` ediyor** (giriş şifresi dahil). Bu loglar release derlemesinde de çalışıyor.
+4. ~~Şifre içeren yanıtlar~~ ve 5. ~~hata yanıtlarında iç detay~~ → ✅ PR-02 (`main`, `pj6y`). **⚠️ `8nfn` hâlâ eski sürümde** → Fonem kullanıcıları için risk sürüyor (PR-12).
+6. ~~Fonem istek/yanıt gövdelerini logluyor~~ → ✅ PR-04.
 7. **Panel "beni hatırla" seçeneğinde şifreyi düz metin SharedPreferences'ta saklıyor;** JWT de düz metin. Çıkış oturumu temizlemiyor.
 8. Swagger prod'da açık, CORS tamamen açık.
 9. KVKK: çocuk ses kayıtları Cloudinary `pronunciation/` klasöründe süresiz ve herkese açık URL ile tutuluyor; kayıtlar OpenAI'ye (ve eski hatta FluentMe'ye) gönderiliyor. Fonem'deki KVKK onayı yalnızca cihazda saklanıyor.
