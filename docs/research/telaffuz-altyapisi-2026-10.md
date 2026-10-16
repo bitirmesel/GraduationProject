@@ -12,7 +12,7 @@
 2. **FluentMe'nin geliştirici API'si tamamen kapandı.** Site Eylül 2026'da yalnızca İngilizce bir koçluk uygulamasına dönüştü. Arka planda Google STT ve Gemini kullanıyor.
 3. **Ses anlayan büyük dil modelleri (GPT-4o-audio, Gemini, Qwen) bu iş için yeterli değil.** 2025-26 yayınlarında bu modeller çocuk konuşma patolojisinde F1 ≤ 0,56, telaffuz hatası tespitinde F1 ≈ 0,46 aldı; klinik eşik 0,80'in üzerinde. Ayrıca Whisper'daki "hatayı düzelterek yazma" sorunu bu modellerde de görülüyor.
 4. **Yine de bugün çalışan, eğitim gerektirmeyen bir yol var: kısıtlı CTC puanlaması.** Türkçe için hazır bir CTC modelini **dil modeli olmadan** kullanırız. Bu model, kaydın beklenen kelimeye (`araba`) mı yoksa bilinen hatalı biçimlerine (`ayaba`, `alaba`, `aaba`) mı daha çok benzediğini olasılık olarak hesaplar. Model yalnızca bizim verdiğimiz adaylar arasında seçim yaptığı için hatayı "düzeltip" yazamaz. Akademide bu yöntem "substitution-aware GOP" olarak geçiyor (Interspeech 2025). Türkçe yazım sese çok yakın olduğu için Türkçe harf tabanlı bir model fonem tanıyıcı yerine kullanılabilir.
-5. **Klinik güvenilirlik için kendi çocuk verimizi toplamamız gerekiyor.** Bilinen bir Türkçe KSB veri seti ya da otomatik tespit çalışması yok. Bu, tez için **gerçek bir katkı alanı**. Benzer çalışmalar 95 çocukla (1,6 saat, Korece) ve 201 çocukla (Lehçe) dil-konuşma terapisti (DKT) yargısına yakın sonuç aldı.
+5. **Klinik güvenilirlik için zamanla kendi çocuk verimizi biriktirmemiz gerekiyor.** Büyük bir veri toplama çalışması şart değil; az veriyle ilerleme yolları için bkz. §4 "Az veriyle ilerleme". Bilinen bir Türkçe KSB veri seti ya da otomatik tespit çalışması yok. Bu, tez için **gerçek bir katkı alanı**. Benzer çalışmalar 95 çocukla (1,6 saat, Korece) ve 201 çocukla (Lehçe) dil-konuşma terapisti (DKT) yargısına yakın sonuç aldı.
 
 **Önerim:** FluentMe'nin yerine başka bir ticari API aramayalım; aynı problemi yine dışarıdan çözemeyeceğiz. **Faz 0** olarak kısıtlı CTC puanlaması yapan küçük bir Python servisi kuralım. Böylece kelime ve cümle oyunları hemen tutarlı bir değerlendirmeye kavuşur. Ardından **Faz 1**'de DKT etiketli çocuk kayıtları toplayıp modeli çocuk sesine uyarlayalım. Hece oyunları Faz 0 doğrulanana kadar Whisper'da kalabilir.
 
@@ -119,6 +119,40 @@ flowchart LR
 - **Hedef:** **50-100 çocuk, toplam 1-3 saat.** Hem tipik gelişen hem KSB'li çocuklar olmalı. Korece çalışma 95 çocuk ve 1,6 saatle DKT'ye çok yakın sonuç aldı (PCC uyumunda ICC 0,98).
 - **Etiketleme:** DKT her hedef sesi şöyle işaretler: doğru / yerine koyma (hangi sesle) / atlama. Kayıtların **%20'sini ikinci bir DKT** etiketler; böylece insanlar arası uyumu, yani ulaşılabilecek tavanı ölçeriz.
 - **Model uyarlama:** CTC modeli LoRA ile çocuk verisine ince ayarlanır. Aşırı uyumu önlemek için Common Voice Türkçe ile karıştırılır. Sonraki adımda, ses başına küçük sınıflandırıcılar (posterior/GOP özellikleri üzerinde) eklenebilir; Hair ve ark. 2021'de bu yöntem düz GOP'u yaklaşık %10 geçmiş.
+
+### Az veriyle ilerleme (50-100 çocuğa ulaşılamazsa)
+
+> 2026-10-16 ekip notu: Şu aşamada bu kadar çocuğa ulaşmak mümkün değil. Bu bölüm, büyük bir veri toplama çalışması yapmadan ilerlemenin yollarını anlatır.
+
+50-100 çocuk yalnızca **modeli çocuk sesine göre yeniden eğitmek** için gerekiyor. **Faz 0 hiç eğitim istemiyor.** Veriye yalnızca "ne kadar iyi çalışıyor?" sorusunu cevaplamak için ihtiyaç var, bunun için de çok daha az veri yeter.
+
+1. **Hazır Türkçe çocuk verisi: PhonBank İstanbul.**
+   - 2;0-7;11 yaş arası 120 çocuk, SST kelimeleri.
+   - Sayfada parola ya da üyelik koşulu yok; kullanımda atıf zorunlu (Biçer 2020).
+   - Çocuklar tipik gelişiyor, ama 2-4 yaş grubu doğal olarak gelişimsel ses değiştirmeleri yapar (ör. r→y).
+   - PhonBank derlemeleri genellikle hedef IPA'nın yanında çocuğun **gerçek söyleyişini (IPA Actual)** de içerir. Bu derlemede olup olmadığı sayfada yazmıyor **[İndirip doğrulanmalı]**. Varsa, kimseye ulaşmadan hem doğru hem hatalı **gerçek Türkçe çocuk örnekleri** elde ederiz.
+2. **Bilerek hatalı okunmuş kayıtlar.**
+   - Ekip ve gönüllü yetişkinler aynı kelimeleri hem doğru hem bilerek hatalı okur ("ayaba", "tedi").
+   - Telaffuz hatası araştırmalarında yapay hata üretme bilinen bir yöntemdir.
+   - Perde ve formant kaydırma (vocal tract length perturbation) ile kayıtlar çocuk sesine yaklaştırılabilir; çocuk ASR çalışmalarında bilinen bir veri çoğaltma tekniğidir.
+   - Sınırlama: gerçek çocuk değil. Ama sistemin r→y gibi zıtlıkları ayırt edip edemediğini birkaç saatte gösterir.
+3. **Uygulamanın kendisini veri kaynağı yapmak (insan döngüde).**
+   - Fonem zaten kayıt alıyor, panelde de terapistler var.
+   - Panele, görev sonucu için tek tıklık bir **terapist onayı** eklenir: ✓ doğru / ✗ yanlış, varsa hangi sesle değiştirildiği.
+   - Ayrı bir çalışma yürütmeden, gerçek kullanımdan, gerçek KSB'li çocuklardan etiketli veri birikir.
+   - Ebeveyn rızası Fonem'in KVKK onay akışına eklenir (ROADMAP PR-24 ile birlikte).
+   - Terapist onayıyla sistem kararı arasındaki uyum, ek bir çalışma yapmadan sürekli bir değerlendirme ölçüsü de olur.
+4. **Küçük ama dürüst bir pilot.**
+   - Tez için **5-10 çocuk ve bir DKT'nin etiketlemesi** yeterli bir pilot olur.
+   - "Büyük ölçekli doğrulama gelecek çalışmadır" kabul edilir bir sınırlamadır; Lehçe ve Korece çalışmalar da pilotla başlamıştı.
+
+**Önerilen sıra:**
+1. Faz 0 prototipi.
+2. PhonBank ve bilerek hatalı okunmuş kayıtlarla ilk ölçüm (yanlış alarm oranı + r→y, s→ş gibi zıtlıkların ayrımı).
+3. Panelde terapist onayı ile veri döngüsü.
+4. Biriken veriyle Faz 1 uyarlaması.
+
+Hiçbir adım büyük bir çocuk toplama çalışmasına bağımlı değil.
 
 ### Değerlendirme (tez için)
 
