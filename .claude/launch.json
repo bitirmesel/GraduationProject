@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "fonem-web",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8765", "--bind", "127.0.0.1", "--directory", "C:/Users/merye/Belgeler/GitHub/FlutterDemo/.claude/worktrees/e2e/build/web"],
+      "port": 8765
+    }
+  ]
+}

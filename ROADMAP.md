@@ -98,7 +98,7 @@ Faz 2, tez demosunda "çocuk oynar → terapist görür" akışını sorunsuz ha
 | PR-25+ | 5 | FN+BE | Yeni oyunlar ve gerçek içerik (Cümle S1-S3, "Yakında" oyunlar) | P2 | PR-07 | ⬜ |
 | PR-26 | 5 | UN | Unity demosunu kaldır / repoyu arşivle (dokümanlar taşındıktan sonra) | P2 | doküman yeri kararı | ⬜ |
 | PR-27 | 2 | BE | `GET /api/players` 500 hatası (NULL alanlı oyuncu kaydı) | P1 | — | ✅ [BE#7](https://github.com/bitirmesel/BackendApi/pull/7) (`pj6y`'de doğrulandı) |
-| PR-28 | 2 | PN+BE | İstemcisi olmayan oyunlar (Fill Gap) görev olarak atanamasın | P1 | — | ⬜ |
+| PR-28 | 2 | PN+BE | Oynanamayan oyun/harf (Fill Gap, içeriksiz harf) görev olarak atanamasın | P1 | — | ✅ [BE#11](https://github.com/bitirmesel/BackendApi/pull/11) · [PN#6](https://github.com/bitirmesel/advisor_panel_app/pull/6) (canlıda doğrulandı) |
 | PR-29 | 1 | BE | Npgsql güvenlik açığı CVE-2024-32655 (8.0.2 → 8.0.9) | **P0** | — | ✅ [BE#10](https://github.com/bitirmesel/BackendApi/pull/10) |
 | — | — | UN | ~~Unity: telaffuz DTO, oturum kaydı, LevelMap, hece oyunu, küçük düzeltmeler, token, davet ekranı~~ | — | — | 🗑️ Unity yalnızca demoydu, gözden çıkarıldı (2026-10-16) |
 
@@ -237,6 +237,8 @@ Karar sonrası: istemcilerin base URL'i tek servise çevrilir, diğer servis kap
 
 ## 6. Faz 3 — Kimlik ve yetki
 
+> **Tasarım ve yayın sırası:** [docs/design/faz3-kimlik-ve-yetki.md](docs/design/faz3-kimlik-ve-yetki.md) (taslak, onay bekliyor). PR-15 orada 15a (gözlem) ve 15b (zorlama) olarak ikiye bölünüyor.
+
 > **Strateji:** Kırıcı değişiklik üç adımda → (1) backend token üretir, (2) istemciler token gönderir, (3) backend zorunlu kılar. Hiçbir anda canlı uygulama kırılmaz.
 
 ### PR-13 · BE · Şifre hash'leme
@@ -294,6 +296,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | 2026-10-16 | ADIM 0 ekip kararıyla ertelendi. Repolar o tarihte public durumdaydı; sırlar yenilenene kadar risk açık kabul edildi. |
 | 2026-10-16 | PR akışına **CI + Claude review** adımı eklendi; PR-17 (CI) öne çekildi. PR-01 Render erişimi olmadığı için draft'a alındı. |
 | 2026-10-16 | PR-00 ve PR-17 merge edildi; PR-02 açıldı (Swagger maddesi PR-15'e taşındı). |
+| 2026-10-17 | **Fonem uçtan uca testi (web, `pj6y`):** giriş (kullanıcı yaptı), harf haritası, inbox rozeti, görev listesi, görev → doğru oyun (Üçlü Eşleştir, Gölgesini Bul), içerik yükleme ve eşleştirme çalışıyor. Telaffuz ve tamamlama test edilemedi (tarayıcı panelinde mikrofon engelli; web webm → B17). PR-28 (BE#11, PN#6) ve B23 (BE#12) merge edildi. Faz 3 tasarım taslağı: [docs/design/faz3-kimlik-ve-yetki.md](docs/design/faz3-kimlik-ve-yetki.md). Backlog B33-B35. Proje tezden sonra startup olarak sürecek. |
 | 2026-10-17 | Render erişimi olmadan PR-12 ilerletildi: iki servisin aynı DB'yi kullandığı doğrulandı, Fonem REST çağrıları `pj6y`'ye taşındı (FN#24). Telaffuz, `pj6y`'de `OPENAI_API_KEY` olmadığı için geçici olarak `8nfn`'de (B32). |
 | 2026-10-16 | Unity'nin yalnızca erken bir demo olduğu netleşti; **tamamen gözden çıkarıldı** (düzeltme, test ve backend uyumluluğu yok). ARCHITECTURE tablolarından Unity sütunu/tüketicisi kaldırıldı. ~~FluentMe hattının tüketicisi kalmadı~~ → düzeltildi: FluentMe kelime/cümle oyunlarının hattıdır ama FluentMe API'si kapalı, Fonem geçici olarak Whisper kullanıyor (B31, 🟠). |
 | 2026-10-16 | Otonom tur (2): PR-22 (BE#9), PR-23a (FN#23), PR-29 (BE#10, yeni — Npgsql CVE) ve PR-23b (PN#5) merge edildi. App id / release imzası bilinçli olarak bırakıldı. Backlog B28-B30. |
@@ -317,7 +320,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | B2 | Repolar public, sırlar git geçmişinde | İlk inceleme | 🔴 | ADIM 0 (ertelendi) + PR-01 (draft) |
 | B3 | `GET /api/players` **iki serviste de 500** | PR-06 canlı veri kontrolü | 🟠 | ✅ PR-27 (`pj6y`); `8nfn` → B1 |
 | B4 | `/api/therapists/{id}/notifications` terapistin **tüm öğrencilerinin** olaylarını çocuk adlarıyla, kimlik doğrulamasız dönüyor | PR-06 review | 🟠 | PR-15 (yalnızca terapist token'ı). Fonem'deki kullanımı PR-07'de kaldırıldı ✅ |
-| B5 | Fill Gap (ID 9) panelden atanabiliyor ama Fonem'de oyunu yok → görev hiç tamamlanamıyor | PR-07 review | 🟠 | **PR-28** (yeni) |
+| B5 | Fill Gap (ID 9) panelden atanabiliyor ama Fonem'de oyunu yok → görev hiç tamamlanamıyor | PR-07 review | 🟠 | ✅ PR-28 (yenileri engelleniyor). Mevcut 5 Fill Gap + 1 içeriksiz görev → B35 |
 | B6 | PR-06b, eski Fonem sürümleri yüzünden yalnızca cihazlar güncellendikten sonra merge edilebilir | PR-06b | 🟠 | PR-06b merge koşulu · 🔑 cihaz güncellemesi |
 | B7 | `main` dalları korumasız (branch protection yok), 4 repoda | PR-00 | 🟡 | 🔑 GitHub ayarı (hesap sahibi) |
 | B8 | `POST /api/notifications` EF entity'sini doğrudan bağlıyor (mass assignment; iç içe `player` yeni satır ekleyebilir) | PR-02 review | 🟡 | PR-15 (DTO'lar) |
@@ -345,6 +348,9 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | B30 | Fonem ve panelde **uyarılar sıfır**, CI artık uyarılarda da başarısız; bilgi notları (deprecated API: Fonem 56, panel ~105) henüz fatal değil | PR-23 | 🟢 | Kart yok (deprecated API güncellemesi) |
 | B31 | **Kelime ve cümle oyunlarının telaffuz değerlendirmesi çalışmıyor (FluentMe).** Tasarım: hece → Whisper, diğer oyunlar → FluentMe. Fonem Haziran'da (`2408bb2`) FluentMe hatası yüzünden tümünü geçici olarak Whisper'a aldı (yorumdaki "backend token istiyor" teşhisi yanlış; 401 FluentMe'den geliyordu). 2026-10-16: `/check` iki serviste 500, FluentMe giriş adresi 404; thefluent.me'nin eski geliştirici API'si kaldırılmış görünüyor. Whisper'da uzun kelimeler 0 puan alıyor (B16) | Unity kararı sonrası inceleme · canlı test | 🟠 | Araştırma: [telaffuz-altyapisi-2026-10.md](docs/research/telaffuz-altyapisi-2026-10.md) — Türkçe telaffuz API'si yok; öneri: kendi kısıtlı CTC servisimiz (Faz 0) + DKT etiketli çocuk verisi (Faz 1). Karar bekliyor |
 | B32 | **`pj6y`'de `OPENAI_API_KEY` yok**: `check-syllable` boş gövdeli 500 dönüyor (`WhisperService` kurucusu hata veriyor), `8nfn`'de 200. Fonem telaffuzu bu yüzden geçici olarak `8nfn`'de | PR-12 duman testi (2026-10-17) | 🟠 | 🔑 Render: anahtarı ekle → Fonem `_defaultPronunciationHost` = `pj6y` |
+| B33 | Minimal API'ler DataAnnotations (`[Required]`, `[EmailAddress]`) kurallarını çalıştırmıyor; ör. `RegisterRequest.Email` null gelirse DB hatası (500) | B23 review | 🟡 | PR-15 (DTO + doğrulama) |
+| B34 | Fonem her oyun açılışında sunucuda oturum başlatıyor; yarıda bırakılanlar birikiyor (test hesabında **278** "devam eden" oturum) | Fonem web testi (2026-10-17) | 🟡 | Kart yok → oturumu ilk etkileşimde başlatmak ya da eskileri otomatik kapatmak |
+| B35 | Canlıda **6 görev hiç tamamlanamaz** (5 Fill Gap, 1 G harfli Üçlü Eşleştir); PR-28 yalnızca yenilerini engelliyor | Fonem testi | 🟢 | **Karar:** iptal mi (`status=CANCELLED`), silme mi, bırakmak mı? |
 
 ### PR-27 · BE · `GET /api/players` 500 hatası — ✅ BE#7
 
