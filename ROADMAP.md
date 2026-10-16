@@ -83,7 +83,7 @@ Faz 2, tez demosunda "çocuk oynar → terapist görür" akışını sorunsuz ha
 | PR-09 | 2 | FN | Sözleşme düzeltmeleri: bildirim okundu POST, profil yolu | P1 | — | ✅ [FN#21](https://github.com/bitirmesel/Fonem/pull/21) |
 | PR-10 | 2 | PN | Terapist kaydını düzelt (+ doğrulama, kullanıcı adıyla giriş) | **P1** | — | ✅ [PN#3](https://github.com/bitirmesel/advisor_panel_app/pull/3) |
 | PR-11 | 2 | PN | Grafik gün etiketleri / saat dilimi; sahte "canlı seans" ve "şifremi unuttum" | P1 | — | ⬜ |
-| PR-12 | 2 | BE+FN+PN | Tek backend servisi + `8nfn` deploy ayarı | **P0** ⬆️ | 🔑 karar + Render | ⏸️ Render erişimi bekliyor |
+| PR-12 | 2 | BE+FN+PN | Tek backend servisi + `8nfn` deploy ayarı | **P0** ⬆️ | 🔑 karar + Render | ◐ Esas servis `pj6y`: ✅ [FN#24](https://github.com/bitirmesel/Fonem/pull/24). Kalan 🔑: `pj6y`'ye `OPENAI_API_KEY` (B32), `8nfn`'i kapat |
 | PR-13 | 3 | BE | Şifre hash'leme (şeffaf geçiş) | P1 | PR-02 | ⬜ |
 | PR-14 | 3 | BE | Oyuncu JWT'si + rol claim'leri | P1 | PR-13 | ⬜ |
 | PR-18 | 3 | FN | Token'ı güvenli sakla ve her istekte gönder | P1 | PR-14 | ⬜ |
@@ -294,6 +294,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | 2026-10-16 | ADIM 0 ekip kararıyla ertelendi. Repolar o tarihte public durumdaydı; sırlar yenilenene kadar risk açık kabul edildi. |
 | 2026-10-16 | PR akışına **CI + Claude review** adımı eklendi; PR-17 (CI) öne çekildi. PR-01 Render erişimi olmadığı için draft'a alındı. |
 | 2026-10-16 | PR-00 ve PR-17 merge edildi; PR-02 açıldı (Swagger maddesi PR-15'e taşındı). |
+| 2026-10-17 | Render erişimi olmadan PR-12 ilerletildi: iki servisin aynı DB'yi kullandığı doğrulandı, Fonem REST çağrıları `pj6y`'ye taşındı (FN#24). Telaffuz, `pj6y`'de `OPENAI_API_KEY` olmadığı için geçici olarak `8nfn`'de (B32). |
 | 2026-10-16 | Unity'nin yalnızca erken bir demo olduğu netleşti; **tamamen gözden çıkarıldı** (düzeltme, test ve backend uyumluluğu yok). ARCHITECTURE tablolarından Unity sütunu/tüketicisi kaldırıldı. ~~FluentMe hattının tüketicisi kalmadı~~ → düzeltildi: FluentMe kelime/cümle oyunlarının hattıdır ama FluentMe API'si kapalı, Fonem geçici olarak Whisper kullanıyor (B31, 🟠). |
 | 2026-10-16 | Otonom tur (2): PR-22 (BE#9), PR-23a (FN#23), PR-29 (BE#10, yeni — Npgsql CVE) ve PR-23b (PN#5) merge edildi. App id / release imzası bilinçli olarak bırakıldı. Backlog B28-B30. |
 | 2026-10-16 | Otonom tur: PR-27 (BE#7), PR-08 (FN#20), PR-09 (FN#21), PR-10 (PN#3), PR-16 (BE#8), PR-20 (FN#22, PN#4) merge edildi. PR-08 kapsamı daraldı (eşik → karar B22), PR-09'daki gameconfig maddesi geçersiz çıktı. Backlog B22-B27. |
@@ -312,7 +313,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 
 | # | Bulgu | Nerede fark edildi | Öncelik | Bağlandığı kart / durum |
 |---|---|---|---|---|
-| B1 | **`8nfn` servisi `main`'i deploy etmiyor**; Fonem eski backend'le konuşuyor (şifre alanı hâlâ dönüyor) | PR-02 sonrası canlı kontrol | 🔴 | PR-12 · 🔑 Render erişimi |
+| B1 | **`8nfn` servisi `main`'i deploy etmiyor**; Fonem eski backend'le konuşuyordu (şifre alanı, 500'ler, Npgsql açığı) | PR-02 sonrası canlı kontrol | 🔴→🟠 | ◐ FN#24: Fonem artık `pj6y`'de (yeni build cihazlara yüklenince etkili). `8nfn` kapatılana kadar eski APK'lar ve telaffuz orada · 🔑 Render |
 | B2 | Repolar public, sırlar git geçmişinde | İlk inceleme | 🔴 | ADIM 0 (ertelendi) + PR-01 (draft) |
 | B3 | `GET /api/players` **iki serviste de 500** | PR-06 canlı veri kontrolü | 🟠 | ✅ PR-27 (`pj6y`); `8nfn` → B1 |
 | B4 | `/api/therapists/{id}/notifications` terapistin **tüm öğrencilerinin** olaylarını çocuk adlarıyla, kimlik doğrulamasız dönüyor | PR-06 review | 🟠 | PR-15 (yalnızca terapist token'ı). Fonem'deki kullanımı PR-07'de kaldırıldı ✅ |
@@ -343,6 +344,7 @@ Token `flutter_secure_storage`'da saklanır, **her** isteğe `Authorization: Bea
 | B29 | `Models/FluentMe/*` kullanılmıyor ama `PronunciationController` `using` ediyor | PR-22 | 🟢 | PR-01 merge edildikten sonra sil (aynı dosya, çakışmasın) |
 | B30 | Fonem ve panelde **uyarılar sıfır**, CI artık uyarılarda da başarısız; bilgi notları (deprecated API: Fonem 56, panel ~105) henüz fatal değil | PR-23 | 🟢 | Kart yok (deprecated API güncellemesi) |
 | B31 | **Kelime ve cümle oyunlarının telaffuz değerlendirmesi çalışmıyor (FluentMe).** Tasarım: hece → Whisper, diğer oyunlar → FluentMe. Fonem Haziran'da (`2408bb2`) FluentMe hatası yüzünden tümünü geçici olarak Whisper'a aldı (yorumdaki "backend token istiyor" teşhisi yanlış; 401 FluentMe'den geliyordu). 2026-10-16: `/check` iki serviste 500, FluentMe giriş adresi 404; thefluent.me'nin eski geliştirici API'si kaldırılmış görünüyor. Whisper'da uzun kelimeler 0 puan alıyor (B16) | Unity kararı sonrası inceleme · canlı test | 🟠 | Araştırma: [telaffuz-altyapisi-2026-10.md](docs/research/telaffuz-altyapisi-2026-10.md) — Türkçe telaffuz API'si yok; öneri: kendi kısıtlı CTC servisimiz (Faz 0) + DKT etiketli çocuk verisi (Faz 1). Karar bekliyor |
+| B32 | **`pj6y`'de `OPENAI_API_KEY` yok**: `check-syllable` boş gövdeli 500 dönüyor (`WhisperService` kurucusu hata veriyor), `8nfn`'de 200. Fonem telaffuzu bu yüzden geçici olarak `8nfn`'de | PR-12 duman testi (2026-10-17) | 🟠 | 🔑 Render: anahtarı ekle → Fonem `_defaultPronunciationHost` = `pj6y` |
 
 ### PR-27 · BE · `GET /api/players` 500 hatası — ✅ BE#7
 
