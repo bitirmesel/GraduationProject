@@ -25,7 +25,7 @@
 10. [Çalışma Kuralları](#10-çalışma-kuralları)
 11. [Önerilen Yol Haritası](#11-önerilen-yol-haritası)
 12. [Açık Sorular ve Kararlar](#12-açık-sorular-ve-kararlar)
-13. [Ek: Unity İstemcisi (emekli)](#13-ek-unity-i̇stemcisi-emekli)
+13. [Ek: Unity Demosu (gözden çıkarıldı)](#13-ek-unity-demosu-gözden-çıkarıldı)
 
 ---
 
@@ -39,7 +39,7 @@ ParroTalk, artikülasyon/fonoloji terapisini oyunlaştıran bir sistemdir (hedef
 | **Terapist** | **advisor_panel_app** — Flutter (`bitirmesel/advisor_panel_app`) | Giriş, dashboard, danışan listesi, davet kodu, bağlantı isteklerini onaylama, görev atama, çocuğa mesaj, oturum geçmişi + geri bildirim, raporlar, profil. |
 | **Sistem / Admin** | Swagger + Postman | Asset setlerini JSON olarak oluşturur, lookup tablolarını düzeltir, debug listelerini okur. |
 
-> **Karar (2026-10-16):** Çocuk istemcisi olarak **Fonem esas alınır; Unity (`GraduationProject`) emeklidir** ve yalnızca referans olarak tutulur (bkz. [§13](#13-ek-unity-i̇stemcisi-emekli)).
+> **Karar (2026-10-16):** Çocuk istemcisi **Fonem**dir. Unity (`GraduationProject`) Flutter'a geçmeden önceki **erken bir demoydu ve tamamen gözden çıkarıldı**: düzeltilmez, test edilmez, backend onunla uyumluluk gözetmez (bkz. [§13](#13-ek-unity-demosu-gözden-çıkarıldı)).
 
 **Terapi içeriği modeli:** 20 Türkçe ünsüz (B, C, Ç, D … Z; `letters.id` 1–20) × oyun tipi (Hece / Kelime / Cümle) × zorluk (1-2-3) → 10 oyun ([§6.4](#64-oyun-kataloğu-gamesid)).
 Her `(oyun, harf)` çifti için bir **AssetSet** (görseller, sesler, heceler) vardır.
@@ -53,7 +53,6 @@ flowchart LR
     subgraph Clients["İstemciler"]
         FN["Fonem<br/>Flutter çocuk uygulaması"]
         PN["advisor_panel_app<br/>Flutter terapist paneli"]
-        UN["Unity çocuk uygulaması<br/>(emekli)"]
     end
 
     subgraph Render["Render.com"]
@@ -67,7 +66,6 @@ flowchart LR
     WH["OpenAI Whisper<br/>(transkripsiyon)"]
 
     FN -- "REST/JSON (token yok)" --> API1
-    UN -. "REST/JSON" .-> API1
     PN -- "REST/JSON (JWT 2 çağrıda)" --> API2
     FN -- "asset indirme" --> CL
     API1 --> DB
@@ -80,28 +78,28 @@ flowchart LR
 **Önemli gerçekler**
 
 - Tüm iş mantığı **tek bir monolit backend**'dedir; istemciler "ince"dir.
-- **Render'da aynı koddan iki servis çalışıyor:** Fonem ve Unity `backendapi-8nfn`'e, terapist paneli `backendapi-pj6y`'ye bağlı. İkisi de aynı 54 endpoint'i sunuyor, lookup verileri birebir aynı (büyük olasılıkla aynı DB). Hangisinin esas olacağı açık soru ([§12](#12-açık-sorular-ve-kararlar)). Ortam değişkeni gerektiren her değişiklik **iki servise de** uygulanmalı.
+- **Render'da aynı koddan iki servis çalışıyor:** Fonem `backendapi-8nfn`'e, terapist paneli `backendapi-pj6y`'ye bağlı. İkisi de aynı 54 endpoint'i sunuyor, lookup verileri birebir aynı (büyük olasılıkla aynı DB). Hangisinin esas olacağı açık soru ([§12](#12-açık-sorular-ve-kararlar)). Ortam değişkeni gerektiren her değişiklik **iki servise de** uygulanmalı.
 - ⚠️ **`8nfn` `main`'den otomatik deploy edilmiyor:** PR-02 merge edildikten sonra `pj6y` güncellendi, `8nfn` güncellenmedi (2026-10-16). Fonem şu an eski backend sürümüyle konuşuyor.
 - Medya (görsel/ses) **Cloudinary**'de durur; veritabanında yalnızca URL parçaları (AssetSet JSON içinde) tutulur.
-- Fonem'in tüm oyunları telaffuzu **Whisper** hattıyla (`check-syllable`) değerlendirir; FluentMe hattı (`check`) şu an yalnızca emekli Unity tarafından kullanılıyordu.
+- Fonem'in tüm oyunları telaffuzu **Whisper** hattıyla (`check-syllable`) değerlendirir; FluentMe hattının (`check`) **canlı tüketicisi yok**: tek kullanıcısı Unity demosuydu, Fonem'deki `FluentMeService.checkPronunciation` çağrılmayan ölü kod. Hattın kaldırılıp kaldırılmayacağı karar bekliyor ([ROADMAP B31](ROADMAP.md#10-fark-edilenler-backlog)).
 - Render ücretsiz katmanı soğuk başlatma yapar; ilk istek 30-60 sn sürebilir.
 
 ---
 
 ## 3. Repolar ve Teknoloji Yığını
 
-| | **Fonem** (çocuk) | **advisor_panel_app** (terapist) | **BackendApi** | **GraduationProject** (Unity, emekli) |
-|---|---|---|---|---|
-| Yerel klasör | `FlutterDemo/` | `advisor_panel_app/` | `BackendApi/` | `GraduationProject/` |
-| Dil / Platform | Dart `^3.11.4`, Flutter | Dart `^3.7.2`, Flutter 3.29 | C# · .NET 8 Minimal API + 2 Controller | C# · Unity 6000.0.52f1 |
-| Durum yönetimi | `setState` + controller/mixin | `setState` | — | `static GameContext` |
-| HTTP | `http` (sarmalayıcı `ApiClient`) — **pubspec'te doğrudan bildirilmemiş** | `http` (doğrudan çağrılar) | — | `UnityWebRequest` |
-| Ses | `record` (WAV 16 kHz mono), `audioplayers` | — | NAudio | `Microphone` + `WavEncoder` |
-| Depolama | `shared_preferences` | `shared_preferences` | PostgreSQL (EF Core 8) | `persistentDataPath` önbellek |
-| Base URL | `--dart-define=API_BASE_URL`, varsayılan `8nfn` | sabit `pj6y` (`api_config.dart`) | — | Inspector, `8nfn` |
-| App id | `com.example.flutter_demo` ⚠️ | `com.example.advisor_panel_app` ⚠️ | — | `com.DefaultCompany.ParroTalk` |
-| Test | 21 birim testi (PR-04, PR-07) | 9 birim testi (PR-05, PR-10) | 20 birim testi (PR-16) | Yok |
-| CI | ✅ analyze (hata + uyarı fatal) + test | ✅ analyze (hata + uyarı fatal) + test | ✅ GitHub Actions (build + test + docker) | Yok |
+| | **Fonem** (çocuk) | **advisor_panel_app** (terapist) | **BackendApi** |
+|---|---|---|---|
+| Yerel klasör | `FlutterDemo/` | `advisor_panel_app/` | `BackendApi/` |
+| Dil / Platform | Dart `^3.11.4`, Flutter | Dart `^3.7.2`, Flutter 3.29 | C# · .NET 8 Minimal API + 2 Controller |
+| Durum yönetimi | `setState` + controller/mixin | `setState` | — |
+| HTTP | `http` (sarmalayıcı `ApiClient`; PR-08 ile pubspec'te bildirildi) | `http` (doğrudan çağrılar) | — |
+| Ses | `record` (WAV 16 kHz mono), `audioplayers` | — | NAudio |
+| Depolama | `shared_preferences` | `shared_preferences` | PostgreSQL (EF Core 8) |
+| Base URL | `--dart-define=API_BASE_URL`, varsayılan `8nfn` | sabit `pj6y` (`api_config.dart`) | — |
+| App id | `com.example.flutter_demo` ⚠️ | `com.example.advisor_panel_app` ⚠️ | — |
+| Test | 21 birim testi (PR-04, PR-07) | 9 birim testi (PR-05, PR-10) | 20 birim testi (PR-16) |
+| CI | ✅ analyze (hata + uyarı fatal) + test | ✅ analyze (hata + uyarı fatal) + test | ✅ GitHub Actions (build + test + docker) |
 
 Ekip: 3 katkıcı. Fonem'de ~95 commit (2026-04 → 2026-06), panelde ~20 commit, backend'de ~110 commit.
 
@@ -345,7 +343,7 @@ erDiagram
 
 ### 6.6 Endpoint kataloğu
 
-Hiçbiri kimlik doğrulama istemez. **FN** = Fonem, **PN** = terapist paneli, **UN** = Unity (emekli).
+Hiçbiri kimlik doğrulama istemez. **FN** = Fonem, **PN** = terapist paneli.
 
 **Kimlik**
 
@@ -353,7 +351,7 @@ Hiçbiri kimlik doğrulama istemez. **FN** = Fonem, **PN** = terapist paneli, **
 |---|---|---|---|
 | POST | `/api/auth/login` | PN | JWT döner |
 | POST | `/api/auth/register` | PN | ⚠️ panelden her zaman 400 (alan uyuşmazlığı) |
-| POST | `/api/player/auth/login` | FN, UN | Token **dönmez** |
+| POST | `/api/player/auth/login` | FN | Token **dönmez** |
 | POST | `/api/player/auth/register` | FN | |
 
 **Danışan / Terapist**
@@ -382,10 +380,10 @@ Hiçbiri kimlik doğrulama istemez. **FN** = Fonem, **PN** = terapist paneli, **
 | POST | `/api/tasks` | PN | |
 | GET | `/api/therapists/{id}/tasks` | — | |
 | GET | `/api/therapists/{id}/notifications` | PN | Görevlerden üretilir; tüm öğrencilerin adlarını içerir. Fonem artık kullanmıyor (PR-07). ⚠️ Kimliksiz erişilebilir → PR-15 |
-| GET | `/api/players/{id}/tasks` | FN, PN, UN | `PlayerTaskDto`: oyun tipi + zorluk (PR-06); terapist bilgisi PR-06b'de |
+| GET | `/api/players/{id}/tasks` | FN, PN | `PlayerTaskDto`: oyun tipi + zorluk (PR-06); terapist bilgisi PR-06b'de |
 | GET | `/api/players/{id}/tasks/active` | — | |
-| POST/GET/DELETE | `/api/notifications…` | PN (POST), FN, UN | POST entity'yi doğrudan bağlıyor (mass assignment) |
-| POST | `/api/notifications/{id}/read` | FN, UN | ⚠️ FN bir yolda PATCH gönderiyor → 405 |
+| POST/GET/DELETE | `/api/notifications…` | PN (POST), FN | POST entity'yi doğrudan bağlıyor (mass assignment) |
+| POST | `/api/notifications/{id}/read` | FN | PR-09 öncesi FN bir yolda PATCH gönderiyordu (405) |
 | GET/POST | `/api/players/{id}/inbox`, `/inbox/unread-count`, `/inbox/{type}/{id}/read`, `/inbox/read-all` | FN | |
 
 **Oyun içeriği ve oturumlar**
@@ -393,7 +391,7 @@ Hiçbiri kimlik doğrulama istemez. **FN** = Fonem, **PN** = terapist paneli, **
 | Metot | Yol | Tüketici | Not |
 |---|---|---|---|
 | GET | `/api/lookup/letters`, `/games`, `/gametypes`, `/difficultylevels` | PN | |
-| GET | `/api/gameconfig/{gameId}/{letterId}` | FN, UN | Mock kaldırıldı (PR-22) |
+| GET | `/api/gameconfig/{gameId}/{letterId}` | FN | Mock kaldırıldı (PR-22) |
 | GET | `/api/asset-sets`, `/api/tasks/{id}/asset-set` | FN | |
 | POST/PUT | `/api/assets/create`, `/bulk-create`, `/{g}/{l}/json` | Admin | |
 | POST | `/api/media/upload`, `/upload-audio` | Admin | |
@@ -406,7 +404,7 @@ Hiçbiri kimlik doğrulama istemez. **FN** = Fonem, **PN** = terapist paneli, **
 
 | Metot | Yol | Motor | Tüketici |
 |---|---|---|---|
-| POST | `/api/pronunciation/check` (`text`, `audio_file`) | FluentMe | UN (FN'de ölü kod) |
+| POST | `/api/pronunciation/check` (`text`, `audio_file`) | FluentMe | **Yok** (yalnızca Unity demosu kullanıyordu; FN'de ölü kod) → B31 |
 | POST | `/api/pronunciation/check-syllable` (`text`, `audio_file`) | Whisper | **FN — tüm oyunlar** |
 
 ### 6.7 Telaffuz değerlendirme hattı
@@ -427,7 +425,7 @@ sequenceDiagram
     API->>API: PronunciationScoringService.Evaluate(target, transcript, 0)
     API-->>FN: PronunciationResultDto {score, passed, feedback_key, transcript…}
 
-    Note over API,FM: Eski hat — /api/pronunciation/check (Unity)
+    Note over API,FM: Kullanılmayan hat — /api/pronunciation/check (B31)
     API->>FM: login → post → (WAV → Cloudinary) → score
     FM-->>API: overall_points + transcript
     API->>API: Evaluate(target, transcript, apiScore)
@@ -535,7 +533,6 @@ Görev yanıtında oyun tipi ve zorluk olmadığı için Fonem oyunu adla eşle�
 | FN | `check-syllable` web (`webm`) | ❌ backend yalnızca WAV | Web'de değerlendirme 500 |
 | FN | `check-syllable` mobil | ✅ | — |
 | FN | `gamesessions/start` + `complete`, inbox, redeem, asset-sets | ✅ | — |
-| UN (emekli) | `/api/assets/sets`, `/notifications/unread-count`, `/gamesessions/finish`; `check` yanıt biçimi | ❌ | Unity emekli; düzeltilmeyecek |
 
 ---
 
@@ -640,7 +637,7 @@ Görev yanıtında oyun tipi ve zorluk olmadığı için Fonem oyunu adla eşle�
 
 | Tarih | Karar |
 |---|---|
-| 2026-10-16 | Çocuk istemcisi **Fonem**; Unity emekli. |
+| 2026-10-16 | Çocuk istemcisi **Fonem**; Unity yalnızca erken bir demoydu, tamamen gözden çıkarıldı. |
 | 2026-10-16 | ADIM 0 (sır yenileme) ertelendi; PR-01 Render erişimi bekliyor. |
 
 **Cevaplanan sorular (2026-10-16)**
@@ -656,24 +653,14 @@ Görev yanıtında oyun tipi ve zorluk olmadığı için Fonem oyunu adla eşle�
 2. Kelime değerlendirmesi Whisper'da mı kalacak? Uzun kelimelerde `api_score = 0` sorunu nasıl çözülecek (Levenshtein benzerliği, FluentMe'ye geri dönüş)?
 3. `ş/s`, `ç/c`, `ı/i` ayrımı terapötik olarak puanlamada korunmalı mı?
 4. Kestrel 5194 tanımı yalnızca Development'a mı taşınmalı?
-5. Bu dokümanlar emekli Unity reposunda duruyor. Ekipçe erişilecek yeni yer neresi olmalı (BackendApi, ayrı bir `docs` reposu, organizasyon wiki'si)?
-6. Tez raporu (Ocak 2026 sürümü) Unity'yi çocuk, Flutter'ı terapist/veli uygulaması olarak, backend'i yer yer "Java Spring Boot" olarak anlatıyor. Final raporu bu dokümana göre güncellenmeli.
+5. Bu dokümanlar gözden çıkarılan Unity demosunun reposunda duruyor. Ekipçe erişilecek yeni yer neresi olmalı (BackendApi, ayrı bir `docs` reposu, organizasyon wiki'si)?
+6. Tez raporu (Ocak 2026 sürümü) Unity demosunu çocuk uygulaması, Flutter'ı terapist/veli uygulaması olarak, backend'i yer yer "Java Spring Boot" olarak anlatıyor. Final raporu bu dokümana göre güncellenmeli.
 7. Çocuk hesabını kim açacak: çocuk kendisi mi (Fonem kayıt), yalnızca terapist mi?
 
 ---
 
-## 13. Ek: Unity İstemcisi (emekli)
+## 13. Ek: Unity Demosu (gözden çıkarıldı)
 
-> `bitirmesel/GraduationProject`. Fonem'le değiştirildi; yeni geliştirme yapılmaz, referans ve arşiv amaçlı tutulur.
+> `bitirmesel/GraduationProject` reposundaki Unity 6 projesi, ekip Flutter'a (Fonem) geçmeden önceki **erken demodur**. Tamamen gözden çıkarılmıştır: hataları düzeltilmez, test edilmez, backend değişikliklerinde onunla uyumluluk gözetilmez. Bu repo şimdilik yalnızca bu dokümanları barındırdığı için duruyor ([§12](#12-açık-sorular-ve-kararlar) soru 5).
 
-**Ne yapıyordu:** Giriş → bildirimler/görevler → harf seçimi → seviye haritası (Hece/Kelime/Cümle × zorluk) → oyun. Çalışan tek oyun hafıza kartlarıydı (`MemoryGameManager`, `games.id = 4`). Ardından telaffuz aşaması geliyordu (FluentMe `/check`, eşik 70). Hece oyunu (`SyllableExerciseManager`) yazılmış ama hiçbir sahneye bağlanmamıştı.
-
-**Mimari özeti:** `DontDestroyOnLoad` singleton'lar (`APIManager`, `AssetLoader` (RAM → disk → ağ önbelleği), `SceneNavigator`, `PronunciationManager`), sahneler arası global durum için `static GameContext`, `BaseGameManager` → `GameLoader.GameModules[GameId]` ile oyun modülleri.
-
-**Bilinen sorunları (düzeltilmeyecek):**
-- Var olmayan endpoint'ler (`/api/assets/sets`, `/api/notifications/unread-count/{id}`, `/api/gamesessions/finish`).
-- `/check` yanıtını eski FluentMe dizi biçimiyle okuyor; backend artık `PronunciationResultDto` dönüyor → puan alınamıyor.
-- Oyun sonuçlarını backend'e hiç kaydetmiyor.
-- `AudioManager` sahnede yok; ölü script'ler var.
-
-Fonem'e taşınan iyi fikirler: telaffuz eşiği, hece kartı akışı (dinle → kaydet → puan), asset önbellekleme.
+Fonem'e taşınan fikirler: telaffuz geçme eşiği, hece kartı akışı (dinle → kaydet → puan), asset önbellekleme.
