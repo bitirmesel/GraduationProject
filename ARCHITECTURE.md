@@ -5,7 +5,7 @@
 > Yeni bir işe başlamadan önce ilgili bölümü okuyun; mimariyi değiştiren her PR'da bu dosyayı da güncelleyin.
 >
 > **Son inceleme:** 2026-10-16 · **İncelenen sürümler:** `Fonem@1ed3f6d`, `advisor_panel_app@6f90bbb`, `BackendApi@4b0ccc5`, `GraduationProject@873c283`
-> **Son güncelleme:** 2026-10-16 — `BackendApi@d9f3992` (PR-29), `Fonem@3292474` (PR-23a), `advisor_panel_app@8c061c3` (PR-20)
+> **Son güncelleme:** 2026-10-16 — `BackendApi@d9f3992` (PR-29), `Fonem@3292474` (PR-23a), `advisor_panel_app@3f2738c` (PR-23b)
 >
 > İş planı ve PR sırası için: **[ROADMAP.md](ROADMAP.md)**
 
@@ -101,7 +101,7 @@ flowchart LR
 | Base URL | `--dart-define=API_BASE_URL`, varsayılan `8nfn` | sabit `pj6y` (`api_config.dart`) | — | Inspector, `8nfn` |
 | App id | `com.example.flutter_demo` ⚠️ | `com.example.advisor_panel_app` ⚠️ | — | `com.DefaultCompany.ParroTalk` |
 | Test | 21 birim testi (PR-04, PR-07) | 9 birim testi (PR-05, PR-10) | 20 birim testi (PR-16) | Yok |
-| CI | ✅ analyze (hata + uyarı fatal) + test | ✅ analyze + test (PR-23b ile uyarılar fatal) | ✅ GitHub Actions (build + test + docker) | Yok |
+| CI | ✅ analyze (hata + uyarı fatal) + test | ✅ analyze (hata + uyarı fatal) + test | ✅ GitHub Actions (build + test + docker) | Yok |
 
 Ekip: 3 katkıcı. Fonem'de ~95 commit (2026-04 → 2026-06), panelde ~20 commit, backend'de ~110 commit.
 
