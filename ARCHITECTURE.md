@@ -101,7 +101,7 @@ flowchart LR
 | Base URL | `--dart-define=API_BASE_URL`, varsayılan `8nfn` | sabit `pj6y` (`api_config.dart`) | — | Inspector, `8nfn` |
 | App id | `com.example.flutter_demo` ⚠️ | `com.example.advisor_panel_app` ⚠️ | — | `com.DefaultCompany.ParroTalk` |
 | Test | 21 birim testi (PR-04, PR-07) | 9 birim testi (PR-05, PR-10) | 20 birim testi (PR-16) | Yok |
-| CI | 🟨 analyze + test (PR-20) | 🟨 analyze + test (PR-20) | ✅ GitHub Actions (build + test + docker) | Yok |
+| CI | ✅ analyze + test (PR-20) | ✅ analyze + test (PR-20) | ✅ GitHub Actions (build + test + docker) | Yok |
 
 Ekip: 3 katkıcı. Fonem'de ~95 commit (2026-04 → 2026-06), panelde ~20 commit, backend'de ~110 commit.
 
@@ -571,7 +571,7 @@ Görev yanıtında oyun tipi ve zorluk olmadığı için Fonem oyunu adla eşle�
 
 ### P2 — Kod kalitesi
 
-- Testler başladı (Fonem 21, panel 9, backend 20) ve CI'da çalışıyor (backend ✅, Flutter PR-20). Ekran/entegrasyon testi yok.
+- Testler başladı (Fonem 21, panel 9, backend 20) ve üç repoda da CI'da çalışıyor. Ekran/entegrasyon testi yok.
 - Panel: servisler birbirini tekrar ediyor (`ReportService` ↔ diğerleri), `therapistId` okuma kodu ~12 kez kopyalanmış, N+1 istek (öğrenci seçimi), `mounted` kontrolsüz `setState`, dispose edilmeyen controller'lar, ~55 deprecated API kullanımı, `pubspec.lock` gitignore'da.
 - Fonem: hece oyunu kayıt ve oturum mantığını ortak mixin'den kopyalamış; iki ayrı session store; çok sayıda ölü dosya.
 - Backend: `Console.WriteLine` loglama, `DateTime.Now`/`UtcNow` karışık, endpoint'lerde tekrarlanan doğrulama, kullanılmayan `Dapper`/`FluentMeService`.
