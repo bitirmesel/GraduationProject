@@ -651,7 +651,7 @@ Görev yanıtında oyun tipi ve zorluk olmadığı için Fonem oyunu adla eşle�
 **Açık sorular**
 
 1. **İki Render servisinden (`8nfn`, `pj6y`) hangisi esas?** Aynı DB'yi mi kullanıyorlar? Her ikisi de `main`'den mi deploy ediliyor?
-2. Kelime değerlendirmesi Whisper'da mı kalacak? Uzun kelimelerde `api_score = 0` sorunu nasıl çözülecek (Levenshtein benzerliği, FluentMe'ye geri dönüş)?
+2. *(Araştırıldı → [docs/research/telaffuz-altyapisi-2026-10.md](docs/research/telaffuz-altyapisi-2026-10.md))* Kelime değerlendirmesi Whisper'da mı kalacak? Uzun kelimelerde `api_score = 0` sorunu nasıl çözülecek (Levenshtein benzerliği, FluentMe'ye geri dönüş)?
 3. `ş/s`, `ç/c`, `ı/i` ayrımı terapötik olarak puanlamada korunmalı mı?
 4. Kestrel 5194 tanımı yalnızca Development'a mı taşınmalı?
 5. Bu dokümanlar gözden çıkarılan Unity demosunun reposunda duruyor. Ekipçe erişilecek yeni yer neresi olmalı (BackendApi, ayrı bir `docs` reposu, organizasyon wiki'si)?
