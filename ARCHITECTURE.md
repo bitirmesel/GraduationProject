@@ -5,6 +5,7 @@
 > Yeni bir işe başlamadan önce ilgili bölümü okuyun; mimariyi değiştiren her PR'da bu dosyayı da güncelleyin.
 >
 > **Son inceleme:** 2026-10-16 · **İncelenen sürümler:** `Fonem@1ed3f6d`, `advisor_panel_app@6f90bbb`, `BackendApi@4b0ccc5`, `GraduationProject@873c283`
+> **Son güncelleme:** 2026-10-16 — `BackendApi@2663677` (PR-06), `Fonem@e16b0d3` (PR-07), `advisor_panel_app@2f651ea` (PR-05)
 >
 > İş planı ve PR sırası için: **[ROADMAP.md](ROADMAP.md)**
 
@@ -309,15 +310,15 @@ erDiagram
 | ID | Tip | Zorluk | Ad | Fonem | Panel |
 |---|---|---|---|---|---|
 | 1 | Hece | 1 | Hece S1 - 2 Harfliler | ✅ | görev atanabilir |
-| 2 | Hece | 2 | Hece S2 - 3 Harfliler | ✅ (görevden açılınca yanlışlıkla S1) | 〃 |
-| 3 | Hece | 3 | Hece S3 - 4 Harfliler | ✅ (görevden açılınca yanlışlıkla S1) | 〃 |
+| 2 | Hece | 2 | Hece S2 - 3 Harfliler | ✅ | 〃 |
+| 3 | Hece | 3 | Hece S3 - 4 Harfliler | ✅ | 〃 |
 | 4 | Kelime | 1 | Kelime S1 - Hafıza Kartı | ✅ | 〃 |
 | 5 | Kelime | 2 | Kelime S2 - Üçlü Eşleştir | ✅ | 〃 |
 | 6 | Kelime | 3 | Kelime S3 - Mesleği Bul | ✅ | 〃 |
 | 7 | Kelime | 3 | Kelime S3 - Gölgesini Bul | ✅ | 〃 |
 | 8 | Cümle | 1 | Cümle S1 - Cümle Kur! | ⚠️ sabit içerik, MP4 paketlenmemiş | 〃 |
-| 9 | Cümle | 2 | Cümle S2 - Fill Gap | ❌ (Cümle Kur açılıyor) | 〃 |
-| 10 | Cümle | 3 | Cümle S3 - Story | ⚠️ görevden açılınca Cümle Kur açılıyor | 〃 |
+| 9 | Cümle | 2 | Cümle S2 - Fill Gap | ⏳ "çok yakında" mesajı (oyun yok) | ⚠️ atanabiliyor → PR-28 |
+| 10 | Cümle | 3 | Cümle S3 - Story | ✅ (sabit içerik) | 〃 |
 
 > **Kural:** Oyun ID'leri Fonem (`known_game_ids.dart`, `game_task_registry.dart`), panel ve asset JSON'larında sabit kodlu. Bu tablo **tek doğru kaynak**tır; değişirse tüm tarafları birlikte güncelleyin.
 
@@ -380,8 +381,8 @@ Hiçbiri kimlik doğrulama istemez. **FN** = Fonem, **PN** = terapist paneli, **
 |---|---|---|---|
 | POST | `/api/tasks` | PN | |
 | GET | `/api/therapists/{id}/tasks` | — | |
-| GET | `/api/therapists/{id}/notifications` | PN, FN | Görevlerden üretilir; ⚠️ FN çocuğa terapistin **tüm öğrencilerinin** akışını gösterebilir |
-| GET | `/api/players/{id}/tasks` | FN, PN, UN | ⚠️ düz yanıt: `therapistId`, oyun tipi, zorluk yok |
+| GET | `/api/therapists/{id}/notifications` | PN | Görevlerden üretilir; tüm öğrencilerin adlarını içerir. Fonem artık kullanmıyor (PR-07). ⚠️ Kimliksiz erişilebilir → PR-15 |
+| GET | `/api/players/{id}/tasks` | FN, PN, UN | `PlayerTaskDto`: oyun tipi + zorluk (PR-06); terapist bilgisi PR-06b'de |
 | GET | `/api/players/{id}/tasks/active` | — | |
 | POST/GET/DELETE | `/api/notifications…` | PN (POST), FN, UN | POST entity'yi doğrudan bağlıyor (mass assignment) |
 | POST | `/api/notifications/{id}/read` | FN, UN | ⚠️ FN bir yolda PATCH gönderiyor → 405 |
@@ -527,7 +528,7 @@ Görev yanıtında oyun tipi ve zorluk olmadığı için Fonem oyunu adla eşle�
 | PN | `GET /api/therapists/{id}` | ⚠️ `title` beklenir, yok | "Terapist" varsayılanı |
 | PN | `GET /api/games`, `/api/letters` | ❌ yok (doğrusu `/api/lookup/...`) | Ölü kodda, etkisi yok |
 | PN | Base URL | ⚠️ `pj6y` (diğerleri `8nfn`) | Karar bekliyor |
-| FN | `GET /api/players/{id}/tasks` | ⚠️ `therapistId`, oyun tipi, zorluk yok | Yanlış seviye/oyun; okunmamış rozeti hiç yüklenmiyor |
+| FN | `GET /api/players/{id}/tasks` | ✅ oyun tipi + zorluk (PR-06); ⏳ terapist PR-06b | Yönlendirme düzeldi (PR-07); profil kartındaki terapist PR-06b ile dolacak |
 | FN | `PATCH /api/notifications/{id}/read` | ❌ backend POST | 405 (yalnızca yedek yolda) |
 | FN | `GET /api/players/{id}` | ❌ yok | Her profil açılışında boşa 404/405, sonra `/students/{id}` |
 | FN | `GET /api/gameconfig/{g}/{l}` | ⚠️ ham metin; Fonem Map bekliyor | Asset-sets'e düşüyor (çift çağrı) |
@@ -539,6 +540,8 @@ Görev yanıtında oyun tipi ve zorluk olmadığı için Fonem oyunu adla eşle�
 ---
 
 ## 9. Bilinen Riskler ve Teknik Borç
+
+> Bu liste mimari düzeyde özettir. PR'lar sırasında fark edilen tüm bulgular, öncelikleri ve bağlandıkları kartlarla birlikte [ROADMAP.md §10 Fark Edilenler (Backlog)](ROADMAP.md#10-fark-edilenler-backlog) bölümünde tutulur.
 
 ### P0 — Güvenlik ve gizlilik (çocuk sağlık verisi işleniyor)
 
@@ -555,7 +558,8 @@ Görev yanıtında oyun tipi ve zorluk olmadığı için Fonem oyunu adla eşle�
 ### P1 — İşlevsel kırıklar
 
 1. Panelden **terapist kaydı imkânsız** (400).
-2. Fonem görev yönlendirmesi: Hece S2/S3 → S1, Story → Cümle Kur, Fill Gap yok; okunmamış rozeti çalışmıyor (`therapistId = 0`).
+2. ~~Fonem görev yönlendirmesi~~ → ✅ PR-06 + PR-07. Kalan: Fill Gap atanabiliyor ama oyunu yok → PR-28.
+2b. `GET /api/players` iki serviste de 500 → PR-27.
 3. Fonem **Cümle Kur MP4'leri `pubspec.yaml`'da yok** → oyun açılmıyor.
 4. Cümle sekmesi pratikte hep kilitli; yalnızca B, T, K açık.
 5. Geçme eşiği tutarsız (hece: backend `passed`; diğer oyunlar: istemcide 70/80).
