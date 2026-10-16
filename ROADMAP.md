@@ -66,7 +66,7 @@ Faz 2, tez demosunda "çocuk oynar → terapist görür" akışını çalışır
 |---|---|---|---|---|---|---|
 | ADIM 0 | 0 | 🔑 | Sızan sırları yenile (rotate) | **P0** | — | ⏸️ ertelendi (2026-10-16) |
 | PR-00 | 0 | UN+BE | Mimari doküman, yol haritası, PR şablonu | P0 | — | 🟨 [UN#1](https://github.com/bitirmesel/GraduationProject/pull/1) · [BE#1](https://github.com/bitirmesel/BackendApi/pull/1) |
-| PR-01 | 1 | BE | Sırları koddan çıkar, ortam değişkenlerine taşı | **P0** | ADIM 0 | ⬜ |
+| PR-01 | 1 | BE | Sırları koddan çıkar, ortam değişkenlerine taşı | **P0** | — (ADIM 0'dan bağımsız yapıldı) | 🟨 [BE#2](https://github.com/bitirmesel/BackendApi/pull/2) |
 | PR-02 | 1 | BE | Kişisel veri sızıntısını durdur (DTO, hata detayı, Swagger) | **P0** | — | ⬜ |
 | PR-03 | 1 | BE | Yerel geliştirme veritabanı (docker-compose + seed) | P0 | PR-01 | ⬜ |
 | PR-04 | 2 | UN | Telaffuz yanıtını `PronunciationResultDto` ile oku | **P1** | — | ⬜ |
